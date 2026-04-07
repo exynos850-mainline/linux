@@ -23,7 +23,7 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges;
-		bootargs = "earlycon= clk_ignore_unused pd_ignore_unused regulator_ignore_unused console=tty1 fbcon=map:0";
+		bootargs = "earlycon= clk_ignore_unused pd_ignore_unused regulator_ignore_unused console=tty1 fbcon=map:0 nosmp";
 
 		framebuffer0: framebuffer@fa000000 {
 			compatible = "simple-framebuffer";
@@ -78,13 +78,13 @@
 		#size-cells = <0x01>;
 		ranges;
 
-		ramoops@92000000 {
+		ramoops@f0f10000 {
 			compatible = "ramoops";
-			reg = <0x00 0x92000000 0x200000>;
-			record-size = <0x20000>;
-			console-size = <0x20000>;
-			ftrace-size = <0x100000>;
-			pmsg-size = <0x20000>;
+			reg = <0x00 0xf0f10000 0x8000>;
+			record-size = <0>;
+			console-size = <0x6000>;
+			ftrace-size = <0>;
+			pmsg-size = <0x2000>;
 		};
 
 		bootloader_fb {
