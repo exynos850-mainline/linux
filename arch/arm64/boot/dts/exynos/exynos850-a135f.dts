@@ -23,7 +23,7 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges;
-		bootargs = "earlycon= clk_ignore_unused pd_ignore_unused regulator_ignore_unused console=tty1 fbcon=map:0";
+		bootargs = "earlycon= clk_ignore_unused pd_ignore_unused regulator_ignore_unused console=tty0 fbcon=map:0";
 
 		framebuffer0: framebuffer@fa000000 {
 			compatible = "simple-framebuffer";
