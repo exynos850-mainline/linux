@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung Galaxy A13 (A135F) board device tree source
+ */
+
+/dts-v1/;
+
+#include "exynos850.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+/ {
+	model = "Samsung Galaxy A13 (A135F)";
+	compatible = "samsung,a135f", "samsung,exynos850";
+
+	aliases {
+		serial0 = &serial_0;
+	};
+
+	chosen {
+		stdout-path = &framebuffer0;
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+		bootargs = "earlycon= clk_ignore_unused pd_ignore_unused regulator_ignore_unused console=tty1 fbcon=map:0";
+
+		framebuffer0: framebuffer@fa000000 {
+			compatible = "simple-framebuffer";
+			reg = <0x0 0xfa000000 0xd00000>;
+			width = <1080>;
+			height = <2408>;
+			stride = <4320>;
+			format = "a8r8g8b8";
+			status = "okay";
+		};
+	};
+
+	// TODO: samsung.
+	memory@8e0000000 {
+		device_type = "memory";
+		reg = <0x08 0xe0000000 0x20000000>;
+	};
+
+	memory@8c0000000 {
+		device_type = "memory";
+		reg = <0x08 0xc0000000 0x20000000>;
+	};
+
+	memory@8a0000000 {
+		device_type = "memory";
+		reg = <0x08 0xa0000000 0x20000000>;
+	};
+
+	memory@880000000 {
+		device_type = "memory";
+		reg = <0x08 0x80000000 0x20000000>;
+	};
+
+	memory@e0d00000 {
+		device_type = "memory";
+		reg = <0x00 0xe0d00000 0x1f300000>;
+	};
+
+	memory@c0000000 {
+		device_type = "memory";
+		reg = <0x00 0xc0000000 0x20000000>;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00 0x80000000 0x3c900000>;
+	};
+
+	// TODO: samsung.
+	reserved-memory {
+		#address-cells = <0x02>;
+		#size-cells = <0x01>;
+		ranges;
+
+		ramoops@92000000 {
+			compatible = "ramoops";
+			reg = <0x00 0x92000000 0x200000>;
+			record-size = <0x20000>;
+			console-size = <0x20000>;
+			ftrace-size = <0x100000>;
+			pmsg-size = <0x20000>;
+		};
+
+		bootloader_fb {
+			reg = <0x00 0xfa000000 0xd00000>;
+			no-map;
+		};
+
+		abox_dbg@E9400000 {
+			compatible = "exynos,abox_dbg";
+			reg = <0x00 0xec000000 0x400000>;
+		};
+
+		abox-slog {
+			compatible = "exynos,abox_slog";
+			reg = <0x00 0xe6c00000 0x2800000>;
+		};
+	};
+
+	rtcclk: clock-rtcclk {
+		compatible = "fixed-clock";
+		clock-output-names = "rtcclk";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
+};
+
+&cmu_hsi {
+	clocks = <&oscclk>, <&rtcclk>,
+		 <&cmu_top CLK_DOUT_HSI_BUS>,
+		 <&cmu_top CLK_DOUT_HSI_MMC_CARD>,
+		 <&cmu_top CLK_DOUT_HSI_USB20DRD>;
+	clock-names = "oscclk", "rtcclk", "dout_hsi_bus",
+		      "dout_hsi_mmc_card", "dout_hsi_usb20drd";
+};
+
+&mmc_0 {
+	status = "okay";
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	cap-mmc-highspeed;
+	non-removable;
+	mmc-hs400-enhanced-strobe;
+	card-detect-delay = <200>;
+	clock-frequency = <800000000>;
+	bus-width = <8>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <0 4>;
+	samsung,dw-mshc-ddr-timing = <2 4>;
+	samsung,dw-mshc-hs400-timing = <0 2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd0_clk_pins &sd0_cmd_pins &sd0_rdqs_pins &sd0_nreset_pins
+		     &sd0_bus1_pins &sd0_bus4_pins &sd0_bus8_pins>;
+};
+
+&usi_cmgp0 {
+	status = "okay";
+};
+
+&oscclk {
+	clock-frequency = <26000000>;
+};
+
+&timer {
+	clock-frequency = <26000000>;
+};
+
+&rtc {
+	status = "disabled";
+	clocks = <&cmu_apm CLK_GOUT_RTC_PCLK>, <&rtcclk>;
+	clock-names = "rtc", "rtc_src";
+};
+
+&spi_1 {
+	status = "okay";
+};
+
+&serial_0 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+};
+
+&usbdrd {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "otg";
+	phy-names = "usb2-phy", "usb3-phy";
+	usb-role-switch;
+};
+
+&usbdrd_phy {
+	status = "okay";
+	pinctrl-names = "default";
+};
+
+&usi_uart {
+	status = "disabled";
+};
+
+&watchdog_cl0 {
+	status = "okay";
+};
+
+&watchdog_cl1 {
+	status = "okay";
+};
