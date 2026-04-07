@@ -27,10 +27,10 @@
 
 		framebuffer0: framebuffer@fa000000 {
 			compatible = "simple-framebuffer";
-			reg = <0x0 0xfa000000 0xd00000>;
+			reg = <0x0 0xfa000000 (1080 * 2408 * 4)>;
 			width = <1080>;
 			height = <2408>;
-			stride = <4320>;
+			stride = <(1080 * 4)>;
 			format = "a8r8g8b8";
 			status = "okay";
 		};
@@ -88,7 +88,7 @@
 		};
 
 		bootloader_fb {
-			reg = <0x00 0xfa000000 0xd00000>;
+			reg = <0x00 0xfa000000 (1080 * 2408 * 4)>;
 			no-map;
 		};
 
