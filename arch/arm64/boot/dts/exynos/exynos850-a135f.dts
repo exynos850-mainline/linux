@@ -122,6 +122,7 @@
 
 &mmc_0 {
 	status = "okay";
+	compatible = "samsung,exynos7-dw-mshc";
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
