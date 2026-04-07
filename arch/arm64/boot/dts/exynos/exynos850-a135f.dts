@@ -81,8 +81,8 @@
 		ramoops@f0f10000 {
 			compatible = "ramoops";
 			reg = <0x00 0xf0f10000 0x8000>;
-			record-size = <0>;
-			console-size = <0x6000>;
+			record-size = <0x2000>;
+			console-size = <0x4000>;
 			ftrace-size = <0>;
 			pmsg-size = <0x2000>;
 		};
