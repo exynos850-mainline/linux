@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung Galaxy A13 (A135F) board device tree source
+ * Samsung Galaxy A13 (A135F) common board device tree source
  */
-
-/dts-v1/;
 
 #include "exynos850.dtsi"
 #include <dt-bindings/gpio/gpio.h>
@@ -34,42 +32,6 @@
 			format = "a8r8g8b8";
 			status = "okay";
 		};
-	};
-
-	// TODO: samsung.
-	memory@8e0000000 {
-		device_type = "memory";
-		reg = <0x08 0xe0000000 0x20000000>;
-	};
-
-	memory@8c0000000 {
-		device_type = "memory";
-		reg = <0x08 0xc0000000 0x20000000>;
-	};
-
-	memory@8a0000000 {
-		device_type = "memory";
-		reg = <0x08 0xa0000000 0x20000000>;
-	};
-
-	memory@880000000 {
-		device_type = "memory";
-		reg = <0x08 0x80000000 0x20000000>;
-	};
-
-	memory@e0d00000 {
-		device_type = "memory";
-		reg = <0x00 0xe0d00000 0x1f300000>;
-	};
-
-	memory@c0000000 {
-		device_type = "memory";
-		reg = <0x00 0xc0000000 0x20000000>;
-	};
-
-	memory@80000000 {
-		device_type = "memory";
-		reg = <0x00 0x80000000 0x3c900000>;
 	};
 
 	// TODO: samsung.
