@@ -22,7 +22,8 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		bootargs = "earlycon= clk_ignore_unused pd_ignore_unused regulator_ignore_unused";
+
+		bootargs = "root=/dev/ram0 earlycon= clk_ignore_unused pd_ignore_unused regulator_ignore_unused root=/dev/mmcblk0p2 rw rootwait";
 		stdout-path = "framebuffer0";
 
 		framebuffer0: framebuffer@fa000000 {
