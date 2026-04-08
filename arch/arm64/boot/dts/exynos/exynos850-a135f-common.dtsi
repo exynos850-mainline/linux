@@ -22,7 +22,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-
+		bootargs = "earlycon= clk_ignore_unused pd_ignore_unused regulator_ignore_unused";
 		stdout-path = "framebuffer0";
 
 		framebuffer0: framebuffer@fa000000 {
