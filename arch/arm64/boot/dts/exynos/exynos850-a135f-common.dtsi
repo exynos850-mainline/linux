@@ -51,7 +51,7 @@
 		};
 
 		cont_splash_mem: framebuffer@fa000000 {
-			reg = <0 0xfa000000 0 0xd00000>;
+			reg = <0 0xfa000000 0 (1080 * 2408 * 4)>;
 			no-map;
 		};
 
