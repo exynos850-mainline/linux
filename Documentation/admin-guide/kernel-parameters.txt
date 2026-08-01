@@ -1530,6 +1530,11 @@ Kernel parameters
 			address must be provided, and the serial port must
 			already be setup and configured.
 
+		simplefb,<addr>,<width>x<height>x<bpp>
+			Use early console with simple framebuffer that is
+			pre-initialized by firmware. A valid base address,
+			width, height and pixel size must be provided.
+
 	earlyprintk=	[X86,SH,ARM,M68k,S390,UM,EARLY]
 			earlyprintk=vga
 			earlyprintk=sclp
