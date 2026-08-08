@@ -182,3 +182,7 @@
         vdd-supply = <&reg_dummy>;
         vbus-supply = <&reg_dummy>;
 };
+
+&gpu {
+	status = "okay";
+};
