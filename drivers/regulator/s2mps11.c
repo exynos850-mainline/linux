@@ -1779,7 +1779,122 @@ static const struct regulator_desc s2mps15_regulators[] = {
 	regulator_desc_s2mps15_buck(10, s2mps15_buck_voltage_ranges2),
 };
 
-static int s2mps14_pmic_enable_ext_control(struct s2mps11_info *s2mps11,
+/* voltage range for s2mpu12 BUCK 1,2 */
+S2MPG10_VOLTAGE_RANGE(s2mpu12_buck, 1, 300000, 500000, 1200000, STEP_6_25_MV);
+
+/* voltage range for s2mpu12 BUCK 4 */
+S2MPG10_VOLTAGE_RANGE(s2mpu12_buck, 4, 600000, 900000, 1500000, STEP_12_5_MV);
+
+/* voltage range for s2mpu12 BUCK 5 */
+S2MPG10_VOLTAGE_RANGE(s2mpu12_buck, 5, 600000, 1800000, 2100000, STEP_12_5_MV);
+
+/* voltage range for s2mpu12 LDO 1, 3, 5, 7, 29, 36 */
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 1, 700000, 700000, 1300000, STEP_12_5_MV);
+
+/* voltage range for s2mpu12 LDO 6 */
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 6, 400000, 500000, 1187500, STEP_12_5_MV);
+
+/* voltage range for s2mpu12 LDO 2, 4, 28, 30, 33, 35 */
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 2, 700000, 1600000, 1950000, STEP_25_MV);
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 28, 700000, 1800000, 1800000, STEP_25_MV);
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 33, 700000, 1600000, 1950000, STEP_25_MV);
+
+/* voltage range for s2mpu12 LDO 8, 9 */
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 8, 300000, 500000, 1300000, STEP_25_MV);
+
+/* voltage range for s2mpu12 LDO 10, 11, 23, 24, 25, 26, 27, 31, 32, 34 */
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 10, 1800000, 1800000, 3375000, STEP_25_MV);
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 24, 1800000, 1800000, 2950000, STEP_25_MV);
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 25, 1800000, 2800000, 2800000, STEP_25_MV);
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 26, 1800000, 3300000, 3375000, STEP_25_MV);
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 27, 1800000, 3300000, 3300000, STEP_25_MV);
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 31, 1800000, 3000000, 3000000, STEP_25_MV);
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 32, 1800000, 2800000, 2800000, STEP_25_MV);
+S2MPG10_VOLTAGE_RANGE(s2mpu12_ldo, 34, 1800000, 1800000, 3375000, STEP_25_MV);
+
+
+#define regulator_desc_s2mpu12_buck(_num, _supply, _range) {		\
+	.name		= "buck"#_num"s",				\
+	.supply_name	= _supply,					\
+	.of_match	= of_match_ptr("buck"#_num"s"),			\
+	.regulators_node = of_match_ptr("regulators"),			\
+	.id		= S2MPU12_BUCK##_num,				\
+	.ops		= &s2mps15_reg_buck_ops,			\
+	.type		= REGULATOR_VOLTAGE,				\
+	.owner		= THIS_MODULE,					\
+	.linear_ranges	= _range,					\
+	.n_linear_ranges = ARRAY_SIZE(_range),				\
+	.n_voltages	= _range##_count,				\
+	.vsel_reg	= S2MPU12_PMIC_B##_num##OUT1,			\
+	.vsel_mask	= S2MPU12_BUCK_VSEL_MASK,			\
+	.enable_reg	= S2MPG15_PMIC_B##_num##CTRL,			\
+	.enable_mask	= S2MPU12_ENABLE_MASK,				\
+	.ramp_delay	= 6000,						\
+}
+
+#define regulator_desc_s2mpu12_ldo(_num, _supply, _range) {		\
+	.name		= "ldo"#_num"s",				\
+	.supply_name	= _supply,					\
+	.of_match	= of_match_ptr("ldo"#_num"s"),			\
+	.regulators_node = of_match_ptr("regulators"),			\
+	.id		= S2MPU12_LDO##_num,				\
+	.ops		= &s2mps15_reg_ldo_ops,				\
+	.type		= REGULATOR_VOLTAGE,				\
+	.owner		= THIS_MODULE,					\
+	.linear_ranges	= _range,					\
+	.n_linear_ranges = ARRAY_SIZE(_range),				\
+	.n_voltages	= _range##_count,				\
+	.vsel_reg	= S2MPU12_PMIC_L##_num##CTRL,			\
+	.vsel_mask	= S2MPU12_LDO_VSEL_MASK,			\
+	.enable_reg	= S2MPU12_PMIC_L##_num##CTRL,			\
+	.enable_mask	= S2MPU12_ENABLE_MASK,				\
+}
+
+static const struct regulator_desc s2mpu12_regulators[] = {
+	/* BUCKs */
+	regulator_desc_s2mpu12_buck(1, "BUCK1", s2mpu12_buck_vranges1),
+	regulator_desc_s2mpu12_buck(2, "BUCK2", s2mpu12_buck_vranges1),
+	regulator_desc_s2mpu12_buck(4, "BUCK4", s2mpu12_buck_vranges2),
+	regulator_desc_s2mpu12_buck(5, "BUCK5", s2mpu12_buck_vranges3),
+
+	/* 12.5 mV LDOs (MIN2 Range Group) */
+	regulator_desc_s2mpu12_ldo(1, "LDO1", s2mpu12_ldo_vranges2),
+	regulator_desc_s2mpu12_ldo(3, "LDO3", s2mpu12_ldo_vranges2),
+	regulator_desc_s2mpu12_ldo(5, "LDO5", s2mpu12_ldo_vranges2),
+	regulator_desc_s2mpu12_ldo(7, "LDO7", s2mpu12_ldo_vranges2),
+	regulator_desc_s2mpu12_ldo(29, "LDO29", s2mpu12_ldo_vranges2),
+	regulator_desc_s2mpu12_ldo(36, "LDO36", s2mpu12_ldo_vranges2),
+
+	/* 12.5 mV LDO (MIN1 Standalone Range Group) */
+	regulator_desc_s2mpu12_ldo(6, "LDO6", s2mpu12_ldo_vranges1),
+
+	/* 25 mV LDOs (MIN4 Range Group) */
+	regulator_desc_s2mpu12_ldo(2, "LDO2", s2mpu12_ldo_vranges4),
+	regulator_desc_s2mpu12_ldo(4, "LDO4", s2mpu12_ldo_vranges4),
+	regulator_desc_s2mpu12_ldo(28, "LDO28", s2mpu12_ldo_vranges4),
+	regulator_desc_s2mpu12_ldo(30, "LDO30", s2mpu12_ldo_vranges4),
+	regulator_desc_s2mpu12_ldo(33, "LDO33", s2mpu12_ldo_vranges4),
+	regulator_desc_s2mpu12_ldo(35, "LDO35", s2mpu12_ldo_vranges4),
+
+	/* 25 mV LDOs (MIN3 Range Group) */
+	regulator_desc_s2mpu12_ldo(8, "LDO8", s2mpu12_ldo_vranges3),
+	regulator_desc_s2mpu12_ldo(9, "LDO9", s2mpu12_ldo_vranges3),
+
+	/* 25 mV LDOs (MIN5 Range Group) */
+	regulator_desc_s2mpu12_ldo(10, "LDO10", s2mpu12_ldo_vranges5),
+	regulator_desc_s2mpu12_ldo(11, "LDO11", s2mpu12_ldo_vranges5),
+	regulator_desc_s2mpu12_ldo(23, "LDO23", s2mpu12_ldo_vranges5),
+	regulator_desc_s2mpu12_ldo(24, "LDO24", s2mpu12_ldo_vranges5),
+	regulator_desc_s2mpu12_ldo(25, "LDO25", s2mpu12_ldo_vranges5),
+	regulator_desc_s2mpu12_ldo(26, "LDO26", s2mpu12_ldo_vranges5),
+	regulator_desc_s2mpu12_ldo(27, "LDO27", s2mpu12_ldo_vranges5),
+	regulator_desc_s2mpu12_ldo(31, "LDO31", s2mpu12_ldo_vranges5),
+	regulator_desc_s2mpu12_ldo(32, "LDO32", s2mpu12_ldo_vranges5),
+	regulator_desc_s2mpu12_ldo(34, "LDO34", s2mpu12_ldo_vranges5),
+};
+
+
+static int s2mpu12_pmic_enable_ext_control(struct s2mps11_info *s2mps11,
 					   struct regulator_dev *rdev)
 {
 	int ret = regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
