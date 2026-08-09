@@ -17,6 +17,7 @@
 #include <linux/mfd/samsung/s2mpu02.h>
 #include <linux/mfd/samsung/s2mpu05.h>
 #include <linux/mfd/samsung/s2mu005.h>
+#include <linux/mfd/samsung/s2mpu12.h>
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/regmap.h>
 #include "sec-core.h"
@@ -305,6 +306,42 @@ static const struct regmap_irq s5m8767_irqs[] = {
 	REGMAP_IRQ_REG(S5M8767_IRQ_WTSR, 2, S5M8767_IRQ_WTSR_MASK),
 };
 
+static const struct regmap_irq s2mpu12_irqs[] = {
+	REGMAP_IRQ_REG(S2MPU12_IRQ_PWRONF, 0, S2MPU12_IRQ_PWRONF_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_PWRONR, 0, S2MPU12_IRQ_PWRONR_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_JIGONBF, 0, S2MPU12_IRQ_JIGONBF_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_JIGONBR, 0, S2MPU12_IRQ_JIGONBR_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_ACOKBF, 0, S2MPU12_IRQ_ACOKBF_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_ACOKBR, 0, S2MPU12_IRQ_ACOKBR_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_PWRON1S, 0, S2MPU12_IRQ_PWRON1S_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_MRB, 0, S2MPU12_IRQ_MRB_MASK),
+
+	REGMAP_IRQ_REG(S2MPU12_IRQ_RTC60S, 1, S2MPU12_IRQ_RTC60S_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_RTCA1, 1, S2MPU12_IRQ_RTCA1_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_RTCA0, 1, S2MPU12_IRQ_RTCA0_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_SMPL, 1, S2MPU12_IRQ_SMPL_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_RTC1S, 1, S2MPU12_IRQ_RTC1S_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_WTSR, 1, S2MPU12_IRQ_WTSR_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_WRSTB, 1, S2MPU12_IRQ_WRSTB_MASK),
+
+	REGMAP_IRQ_REG(S2MPU12_IRQ_OCPB1, 2, S2MPU12_IRQ_OCPB1_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_OCPB2, 2, S2MPU12_IRQ_OCPB2_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_OCPB3, 2, S2MPU12_IRQ_OCPB3_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_OCPB4, 2, S2MPU12_IRQ_OCPB4_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_OCPB5, 2, S2MPU12_IRQ_OCPB5_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_OCPBST, 2, S2MPU12_IRQ_OCPBST_MASK),
+
+	REGMAP_IRQ_REG(S2MPU12_IRQ_O1_B1, 4, S2MPU12_IRQ_O1_B1_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_O1_B2, 4, S2MPU12_IRQ_O1_B2_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_O1_B3, 4, S2MPU12_IRQ_O1_B3_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_O1_B4, 4, S2MPU12_IRQ_O1_B4_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_O1_B5, 4, S2MPU12_IRQ_O1_B5_MASK),
+
+	REGMAP_IRQ_REG(S2MPU12_IRQ_INT120C, 5, S2MPU12_IRQ_INT120C_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_INT140C, 5, S2MPU12_IRQ_INT140C_MASK),
+	REGMAP_IRQ_REG(S2MPU12_IRQ_TSD, 5, S2MPU12_IRQ_TSD_MASK),
+};
+
 /* All S2MPG1x interrupt sources are read-only and don't require clearing */
 static const struct regmap_irq_chip s2mpg10_irq_chip = {
 	.name = "s2mpg10",
@@ -405,6 +442,16 @@ static const struct regmap_irq_chip s2mu005_irq_chip = {
 	.status_base = S2MU005_REG_CHGR_INT1,
 	.mask_base = S2MU005_REG_CHGR_INT1M,
 	.get_irq_reg = s2mu005_irq_get_reg,
+};
+
+static const struct regmap_irq_chip s2mpu12_irq_chip = {
+        .name = "s2mpu12",
+        .irqs = s2mpu12_irqs,
+        .num_irqs = ARRAY_SIZE(s2mpu12_irqs),
+        .num_regs = 6,
+        .status_base = S2MPU12_PMIC_INT1,
+        .mask_base = S2MPU12_PMIC_INT1M,
+        .ack_base = S2MPU12_PMIC_INT1,
 };
 
 static const struct regmap_irq_chip s5m8767_irq_chip = {
@@ -515,6 +562,9 @@ struct regmap_irq_chip_data *sec_irq_init(struct sec_pmic_dev *sec_pmic)
 	case S2MU005:
 		sec_irq_chip = &s2mu005_irq_chip;
 		break;
+        case S2MPU12X:
+                sec_irq_chip = &s2mpu12_irq_chip;
+                break;
 	default:
 		return dev_err_ptr_probe(sec_pmic->dev, -EINVAL, "Unsupported device type %d\n",
 					 sec_pmic->device_type);
