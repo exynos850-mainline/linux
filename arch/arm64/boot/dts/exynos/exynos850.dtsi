@@ -250,9 +250,9 @@
 		ap2apm_mailbox: mailbox@11900000 {
 			compatible = "google,gs101-mbox";
 			reg = <0x11900000 0x1000>;
-			clocks = <&cmu_apm CLK_GOUT_APM_MAILBOX_AP_PCLK>;
+			clocks = <&cmu_apm CLK_GOUT_MAILBOX_APM_AP_PCLK>;
 			clock-names = "pclk";
-			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <0>;
 		};
 
