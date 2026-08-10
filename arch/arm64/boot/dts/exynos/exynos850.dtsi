@@ -31,6 +31,14 @@
 		pinctrl5 = &pinctrl_peri;
 	};
 
+	firmware {
+		acpm_ipc: power-management {
+			compatible = "samsung,exynos850-acpm-ipc";
+			mboxes = <&ap2apm_mailbox>;
+			shmem = <&apm_sram>;
+		};
+	};
+
 	arm-pmu {
 		compatible = "arm,cortex-a55-pmu";
 		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
@@ -157,6 +165,14 @@
 		     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
+	apm_sram: sram@2039000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x2039000 0x0 0x30000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x2039000 0x30000>;
+	};
+
 	soc: soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -229,6 +245,15 @@
 				mask = <0x2>; /* SWRESET_SYSTEM */
 				value = <0x2>; /* reset value */
 			};
+		};
+
+		ap2apm_mailbox: mailbox@11900000 {
+			compatible = "google,gs101-mbox";
+			reg = <0x11900000 0x1000>;
+			clocks = <&cmu_apm CLK_GOUT_APM_MAILBOX_AP_PCLK>;
+			clock-names = "pclk";
+			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <0>;
 		};
 
 		watchdog_cl0: watchdog@10050000 {
