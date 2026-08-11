@@ -884,6 +884,7 @@ static const struct acpm_match_data acpm_gs101 = {
 
 static const struct acpm_match_data acpm_exynos850 = {
 	.initdata_base = ACPM_EXYNOS850_INITDATA_BASE,
+	.acpm_clk_dev_name = "exynos850-acpm-clk",
 };
 
 static const struct of_device_id acpm_match[] = {

@@ -571,7 +571,7 @@ enum s2mpu12_irq {
 #define S2MPU12_IRQ_SMPL_MASK		(1 << 3)
 #define S2MPU12_IRQ_RTC1S_MASK		(1 << 4)
 #define S2MPU12_IRQ_WTSR_MASK		(1 << 5)
-#define S2MPU12_IRQ_WTSRB_MASK		(1 << 7)
+#define S2MPU12_IRQ_WRSTB_MASK		(1 << 7)
 
 #define S2MPU12_IRQ_OCPB1_MASK		(1 << 0)
 #define S2MPU12_IRQ_OCPB2_MASK		(1 << 1)

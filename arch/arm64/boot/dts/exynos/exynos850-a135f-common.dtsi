@@ -98,7 +98,7 @@
 &acpm_ipc {
 	pmic-1 {
 		compatible = "samsung,s2mpu12-pmic";
-		interrupts-extended = <&gpg1 5 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&gpa0 0 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
 		system-power-controller;
@@ -342,6 +342,7 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-ramp-delay = <12000>;
+			};
 		};
 	};
 };
@@ -361,6 +362,13 @@
 };
 
 &pinctrl_alive {
+        pmic_int: pmic-int-pins {
+                samsung,pins = "gpa0-0";
+                samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+                samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
+
 	key_voldown: key-voldown-pins {
 		samsung,pins = "gpa1-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
@@ -435,5 +443,6 @@
 };
 
 &gpu {
+	mali-supply = <&vdd_gpu>;
 	status = "okay";
 };

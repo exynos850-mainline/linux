@@ -167,6 +167,7 @@ static int acpm_clk_probe(struct platform_device *pdev)
 
 static const struct platform_device_id acpm_clk_id[] = {
 	{ "gs101-acpm-clk" },
+	{ "exynos850-acpm-clk" },
 	{}
 };
 MODULE_DEVICE_TABLE(platform, acpm_clk_id);
