@@ -74,6 +74,13 @@
 		regulator-name = "dummy_reg";
 	};
 
+	reg_mali: regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "mali";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -184,5 +191,6 @@
 };
 
 &gpu {
+	mali-supply = <&reg_mali>;
 	status = "okay";
 };
