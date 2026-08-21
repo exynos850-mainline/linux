@@ -81,6 +81,13 @@
 		regulator-max-microvolt = <900000>;
 	};
 
+        reg_lcd_vddi: regulator-2 {
+                compatible = "regulator-fixed";
+                regulator-name = "lcd_vddi";
+                regulator-min-microvolt = <1800000>;
+                regulator-max-microvolt = <1800000>;
+        };
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -193,4 +200,35 @@
 &gpu {
 	mali-supply = <&reg_mali>;
 	status = "okay";
+};
+
+&usi_cmgp0 {
+	samsung,mode = <USI_MODE_SPI>;
+	status = "okay";
+};
+
+&spi_1 {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* single populated touch IC on this board, not the vendor's shared
+	 * 3-way novatek/himax/ovt mux -> one CS line
+	 */
+	num-cs = <1>;
+	cs-gpios = <&gpm3 0 GPIO_ACTIVE_LOW>;   /* from ovt,cs-gpio fixup -> gpm3 */
+
+	touchscreen@0 {
+		compatible = "ovt,td4150";
+		reg = <0>;
+		spi-max-frequency = <7000000>;   /* ovt,spi-max-frequency = 0x6acfc0 */
+		spi-cpol;
+		spi-cpha;                        /* ovt,spi-mode = 0x03 -> SPI_MODE_3 */
+
+		interrupt-parent = <&gpa0>;      /* ovt,irq-gpio fixup -> gpa0 */
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;   /* ovt,irq-on-state = 0 -> active-low */
+
+		vdd-supply = <&reg_lcd_vddi>;
+	};
 };

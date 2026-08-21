@@ -301,9 +301,9 @@
 			reg = <0x11500000 0x5000>;
 			clocks = <&cmu_g3d CLK_GOUT_G3D_GPU_CLK>;
 			clock-names = "core";
-			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "job", "mmu", "gpu";
 			status = "disabled";
 		};
@@ -862,7 +862,7 @@
 				interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&spi1_pins>;
 				pinctrl-names = "default";
-				num-cs = <1>;
+				num-cs = <3>;
 				samsung,spi-src-clk = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
