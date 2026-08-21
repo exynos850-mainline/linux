@@ -81,6 +81,13 @@
 		regulator-max-microvolt = <900000>;
 	};
 
+        reg_lcd_vddi: regulator-2 {
+                compatible = "regulator-fixed";
+                regulator-name = "lcd_vddi";
+                regulator-min-microvolt = <1800000>;
+                regulator-max-microvolt = <1800000>;
+        };
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -193,4 +200,32 @@
 &gpu {
 	mali-supply = <&reg_mali>;
 	status = "okay";
+};
+
+&usi_cmgp0 {
+	samsung,mode = <USI_MODE_SPI>;
+	status = "okay";
+};
+
+&spi_1 {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	num-cs = <1>;
+	cs-gpios = <&gpm3 0 GPIO_ACTIVE_LOW>;
+
+	touchscreen@0 {
+		compatible = "ovt,td4150";
+		reg = <0>;
+		spi-max-frequency = <7000000>;
+		spi-cpol;
+		spi-cpha;
+
+		interrupt-parent = <&gpa0>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+
+		vdd-supply = <&reg_lcd_vddi>;
+	};
 };

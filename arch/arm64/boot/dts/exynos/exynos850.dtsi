@@ -862,7 +862,7 @@
 				interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&spi1_pins>;
 				pinctrl-names = "default";
-				num-cs = <1>;
+				num-cs = <3>;
 				samsung,spi-src-clk = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
