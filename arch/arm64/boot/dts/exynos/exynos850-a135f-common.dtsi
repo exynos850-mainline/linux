@@ -104,7 +104,7 @@
 		volup-key {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&gpa1 7 GPIO_ACTIVE_LOW>;
+			gpios = <&gpa0 7 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -132,7 +132,7 @@
 	};
 
 	key_volup: key-volup-pins {
-		samsung,pins = "gpa1-7";
+		samsung,pins = "gpa0-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
