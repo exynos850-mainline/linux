@@ -636,6 +636,15 @@
 			clocks = <&cmu_cmgp CLK_GOUT_SYSREG_CMGP_PCLK>;
 		};
 
+		typec: et7304@4e {
+			compatible = "etek,et7303";
+			reg = <0x0 0x4e>;
+			interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_LOW>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&typec_pins>;
+			status = "disabled";
+		};
+
 		usbdrd: usb@13600000 {
 			compatible = "samsung,exynos850-dwusb3";
 			ranges = <0x0 0x13600000 0x10000>;
