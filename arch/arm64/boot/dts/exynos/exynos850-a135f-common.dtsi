@@ -88,6 +88,13 @@
                 regulator-max-microvolt = <1800000>;
         };
 
+        reg_usb_vdd33: regulator-3 {
+                compatible = "regulator-fixed";
+                regulator-name = "usb_vdd33";
+                regulator-min-microvolt = <3375000>;
+                regulator-max-microvolt = <3375000>;
+        };
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -171,30 +178,9 @@
 };
 
 &usbdrd {
-        status = "okay";
-        /delete-property/ extcon;
-        /delete-property/ pinctrl-names;
-        /delete-property/ pinctrl-0;
-        vdd10-supply = <&reg_dummy>;
-        vdd33-supply = <&reg_dummy>;
-};
+	vdd33-supply = <&reg_usb_vdd33>;
 
-&usbdrd_dwc3 {
-        status = "okay";
-        dr_mode = "peripheral";
-        maximum-speed = "high-speed";
-        /delete-property/ extcon;
-        phys = <&usbdrd_phy 0>;
-        phy-names = "usb2-phy";
-};
-
-&usbdrd_phy {
-        status = "okay";
-        /delete-property/ extcon;
-        /delete-property/ pinctrl-names;
-        /delete-property/ pinctrl-0;
-        vdd-supply = <&reg_dummy>;
-        vbus-supply = <&reg_dummy>;
+	status = "okay";
 };
 
 &gpu {
