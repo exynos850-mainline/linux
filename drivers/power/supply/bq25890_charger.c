@@ -23,9 +23,13 @@
 #define BQ25890_MANUFACTURER		"Texas Instruments"
 #define BQ25890_IRQ_PIN			"bq25890_irq"
 
+#define SY6970_MANUFACTURER		"Silergy"
+#define SY6970_IRQ_PIN			"sy6970_irq"
+
 #define BQ25890_ID			3
 #define BQ25895_ID			7
 #define BQ25896_ID			0
+#define SY6970_ID			1
 
 #define PUMP_EXPRESS_START_DELAY	(5 * HZ)
 #define PUMP_EXPRESS_MAX_TRIES		6
@@ -36,6 +40,7 @@ enum bq25890_chip_version {
 	BQ25892,
 	BQ25895,
 	BQ25896,
+	SY6970,
 };
 
 static const char *const bq25890_chip_name[] = {
@@ -43,6 +48,7 @@ static const char *const bq25890_chip_name[] = {
 	"BQ25892",
 	"BQ25895",
 	"BQ25896",
+	"SY6970",
 };
 
 enum bq25890_fields {
@@ -525,7 +531,10 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_MANUFACTURER:
-		val->strval = BQ25890_MANUFACTURER;
+		if (bq->chip_version == SY6970) {
+			val->strval = SY6970_MANUFACTURER;
+		} else
+			val->strval = BQ25890_MANUFACTURER;
 		break;
 
 	case POWER_SUPPLY_PROP_MODEL_NAME:
@@ -1297,6 +1306,10 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 		bq->chip_version = BQ25890;
 		break;
 
+        case SY6970_ID:
+                bq->chip_version = SY6970;
+                break;
+
 	/* BQ25892 and BQ25896 share same ID 0 */
 	case BQ25896_ID:
 		switch (rev) {
@@ -1329,14 +1342,21 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 static int bq25890_irq_probe(struct bq25890_device *bq)
 {
 	struct gpio_desc *irq;
+	const char *pin_id;
 
-	irq = devm_gpiod_get(bq->dev, BQ25890_IRQ_PIN, GPIOD_IN);
+	if (bq->chip_version == SY6970)
+		pin_id = SY6970_IRQ_PIN;
+	else
+		pin_id = BQ25890_IRQ_PIN;
+
+	irq = devm_gpiod_get(bq->dev, pin_id, GPIOD_IN);
 	if (IS_ERR(irq))
 		return dev_err_probe(bq->dev, PTR_ERR(irq),
 				     "Could not probe irq pin.\n");
 
 	return gpiod_to_irq(irq);
 }
+
 
 static int bq25890_fw_read_u32_props(struct bq25890_device *bq)
 {
