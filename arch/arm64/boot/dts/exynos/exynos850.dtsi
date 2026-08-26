@@ -663,9 +663,6 @@
 				phys = <&usbdrd_phy 0>;
 				phy-names = "usb2-phy";
 
-				dr_mode = "otg";
-				usb-role-switch;
-				role-switch-default-mode = "host";
 				snps,usb2-gadget-lpm-disable;
 
 				snps,dis_u2_susphy_quirk;
