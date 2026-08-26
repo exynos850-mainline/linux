@@ -144,6 +144,22 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
+
+        chg_int_default: chg-int-default {
+                samsung,pins = "gpa2-5";
+                samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+                samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+                samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+        };
+};
+
+&pinctrl_peri {
+        chg_en_default: chg-en-default {
+                samsung,pins = "gpg2-3";
+                samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+                samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+                samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+        };
 };
 
 &cmu_hsi {
@@ -213,5 +229,33 @@
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 
 		vdd-supply = <&reg_lcd_vddi>;
+	};
+};
+
+&i2c_0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	charger@6a {
+		compatible = "ti,bq25896";
+		reg = <0x6a>;
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&chg_int_default &chg_en_default>;
+
+		interrupt-parent = <&gpa2>; 
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>; // Maps to pin 5, falling edge
+
+		ti,battery-regulation-voltage = <4380000>; /* 4.38V */
+		ti,charge-current = <448000>;             /* 448mA */
+		ti,termination-current = <192000>;         /* 192mA */
+		ti,precharge-current = <448000>;           /* 448mA */
+		ti,minimum-sys-voltage = <3400000>;        /* 3.4V */
+		ti,boost-voltage = <5062000>;              /* 5.062V */
+		ti,boost-max-current = <1200000>;          /* 1.2A */
+
+		ti,thermal-regulation-threshold = <120>; 
 	};
 };
