@@ -238,7 +238,7 @@
 	status = "okay";
 
 	charger@6a {
-		compatible = "ti,bq25896";
+		compatible = "silergy,sy6970";
 		reg = <0x6a>;
 		status = "okay";
 

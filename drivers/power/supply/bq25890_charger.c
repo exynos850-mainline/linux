@@ -888,6 +888,12 @@ static int bq25890_chip_reset(struct bq25890_device *bq)
 	if (ret < 0)
 		return ret;
 
+	/* SY6970 registers take longer to clear or do not self-clear this field */
+	if (bq->chip_version == SY6970) {
+		usleep_range(100, 200);
+		return 0;
+	}
+
 	do {
 		ret = bq25890_field_read(bq, F_REG_RST);
 		if (ret < 0)
@@ -901,6 +907,7 @@ static int bq25890_chip_reset(struct bq25890_device *bq)
 
 	return 0;
 }
+
 
 static int bq25890_rw_init_data(struct bq25890_device *bq)
 {
@@ -1641,6 +1648,7 @@ static const struct i2c_device_id bq25890_i2c_ids[] = {
 	{ .name = "bq25892" },
 	{ .name = "bq25895" },
 	{ .name = "bq25896" },
+	{ .name = "sy6970" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bq25890_i2c_ids);
@@ -1650,6 +1658,7 @@ static const struct of_device_id bq25890_of_match[] __maybe_unused = {
 	{ .compatible = "ti,bq25892", },
 	{ .compatible = "ti,bq25895", },
 	{ .compatible = "ti,bq25896", },
+	{ .compatible = "silergy,sy6970", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq25890_of_match);
