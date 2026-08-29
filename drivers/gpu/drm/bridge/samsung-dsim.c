@@ -251,6 +251,11 @@ static struct clk_bulk_data exynos7870_clk_bulk_data[] = {
 	{ .id = "esc" },
 };
 
+static struct clk_bulk_data exynos850_clk_bulk_data[] = {
+	{ .id = "bus" },
+	{ .id = "sclk" },
+};
+
 enum reg_idx {
 	DSIM_STATUS_REG,	/* Status register (legacy) */
 	DSIM_LINK_STATUS_REG,	/* Link status register */
@@ -353,6 +358,28 @@ static const unsigned int exynos7870_reg_ofs[] = {
 	[DSIM_PHYTIMING2_REG] = 0xBC,
 };
 
+static const unsigned int exynos850_reg_ofs[] = {
+	[DSIM_LINK_STATUS_REG] = 0x14,
+	[DSIM_DPHY_STATUS_REG] = 0x1c,
+	[DSIM_SWRST_REG] = 0x04,
+	[DSIM_CLKCTRL_REG] = 0x20,
+	[DSIM_TIMEOUT_REG] = 0x28,
+	[DSIM_CONFIG_REG] = 0x4c,
+	[DSIM_ESCMODE_REG] = 0x2c,
+	[DSIM_MDRESOL_REG] = 0x3c,
+	[DSIM_MVPORCH_REG] = 0x104,
+	[DSIM_MHPORCH_REG] = 0x44,
+	[DSIM_MSYNC_REG] = 0x48,
+	[DSIM_INTSRC_REG] = 0x50,
+	[DSIM_INTMSK_REG] = 0x54,
+	[DSIM_PKTHDR_REG] = 0x58,
+	[DSIM_PAYLOAD_REG] = 0x5c,
+	[DSIM_RXFIFO_REG] = 0x60,
+	[DSIM_SFRCTRL_REG] = 0x64,
+	[DSIM_FIFOCTRL_REG] = 0x68,
+	[DSIM_PLLCTRL_REG] = 0xa0,
+};
+
 enum reg_value_idx {
 	RESET_TYPE,
 	PLL_TIMER,
@@ -441,6 +468,15 @@ static const unsigned int exynos7870_reg_values[] = {
 	[PHYTIMING_HS_PREPARE] = DSIM_PHYTIMING2_HS_PREPARE(0x09),
 	[PHYTIMING_HS_ZERO] = DSIM_PHYTIMING2_HS_ZERO(0x0f),
 	[PHYTIMING_HS_TRAIL] = DSIM_PHYTIMING2_HS_TRAIL(0x0c),
+};
+
+static const unsigned int exynos850_reg_values[] = {
+        [RESET_TYPE] = DSIM_SWRST,
+        [PLL_TIMER] = 26666,
+        [STOP_STATE_CNT] = 0xa,
+        [PHYCTRL_ULPS_EXIT] = DSIM_PHYCTRL_ULPS_EXIT(0x177),
+        [PHYCTRL_VREG_LP] = 0,
+        [PHYCTRL_SLEW_UP] = 0,
 };
 
 static const unsigned int imx8mm_dsim_reg_values[] = {
@@ -644,6 +680,36 @@ static const struct samsung_dsim_driver_data exynos7870_dsi_driver_data = {
 	.min_freq = 500,
 };
 
+static const struct samsung_dsim_driver_data exynos850_dsi_driver_data = {
+        .reg_ofs = exynos850_reg_ofs,
+        .plltmr_reg = 0xac,
+        .has_clklane_stop = 1,
+        .has_sfrctrl = 1,
+        .clk_data = exynos850_clk_bulk_data,
+        .num_clks = ARRAY_SIZE(exynos850_clk_bulk_data),
+        .max_freq = 1500,
+        .wait_for_hdr_fifo = 0,
+        .wait_for_reset = 1,
+        .num_bits_resol = 12,
+        .video_mode_bit = 18,
+        .pll_stable_bit = 24,
+        .esc_clken_bit = 16,
+        .byte_clken_bit = 17,
+        .tx_req_hsclk_bit = 20,
+        .lane_esc_clk_bit = 8,
+        .lane_esc_data_offset = 9,
+        .pll_p_offset = 13,
+        .pll_m_offset = 3,
+        .pll_s_offset = 0,
+        .main_vsa_offset = 16,
+        .reg_values = exynos7870_reg_values,
+        .pll_fin_min = 6,
+        .pll_fin_max = 12,
+        .m_min = 41,
+        .m_max = 125,
+        .min_freq = 500,
+};
+
 static const struct samsung_dsim_driver_data imx8mm_dsi_driver_data = {
 	.reg_ofs = exynos5433_reg_ofs,
 	.plltmr_reg = 0xa0,
@@ -686,6 +752,7 @@ samsung_dsim_types[DSIM_TYPE_COUNT] = {
 	[DSIM_TYPE_EXYNOS5422] = &exynos5422_dsi_driver_data,
 	[DSIM_TYPE_EXYNOS5433] = &exynos5433_dsi_driver_data,
 	[DSIM_TYPE_EXYNOS7870] = &exynos7870_dsi_driver_data,
+	[DSIM_TYPE_EXYNOS850] = &exynos850_dsi_driver_data,
 	[DSIM_TYPE_IMX8MM] = &imx8mm_dsi_driver_data,
 	[DSIM_TYPE_IMX8MP] = &imx8mm_dsi_driver_data,
 };
