@@ -144,6 +144,9 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	case S2MPG10:
 		s2mps11_reg = S2MPG10_PMIC_RTCBUF;
 		break;
+	case S2MPU12X:
+		s2mps11_reg = S2MPU12_PMIC_RTCBUF;
+		break;
 	case S2MPS11X:
 		s2mps11_reg = S2MPS11_REG_RTC_CTRL;
 		break;
@@ -226,6 +229,7 @@ static void s2mps11_clk_remove(struct platform_device *pdev)
 
 static const struct platform_device_id s2mps11_clk_id[] = {
 	{ "s2mpg10-clk", S2MPG10},
+	{ "s2mpu12-clk", S2MPU12X},
 	{ "s2mps11-clk", S2MPS11X},
 	{ "s2mps13-clk", S2MPS13X},
 	{ "s2mps14-clk", S2MPS14X},
@@ -248,6 +252,9 @@ static const struct of_device_id s2mps11_dt_match[] __used = {
 	{
 		.compatible = "samsung,s2mpg10-clk",
 		.data = (void *)S2MPG10,
+	}, {
+		.compatible = "samsung,s2mpu12-clk",
+		.data = (void *)S2MPU12X,
 	}, {
 		.compatible = "samsung,s2mps11-clk",
 		.data = (void *)S2MPS11X,

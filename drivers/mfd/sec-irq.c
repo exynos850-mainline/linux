@@ -451,7 +451,7 @@ static const struct regmap_irq_chip s2mpu12_irq_chip = {
         .num_regs = 6,
         .status_base = S2MPU12_PMIC_INT1,
         .mask_base = S2MPU12_PMIC_INT1M,
-        .ack_base = S2MPU12_PMIC_INT1,
+	.ack_base = S2MPU12_PMIC_INT1,
 };
 
 static const struct regmap_irq_chip s5m8767_irq_chip = {
@@ -563,8 +563,8 @@ struct regmap_irq_chip_data *sec_irq_init(struct sec_pmic_dev *sec_pmic)
 		sec_irq_chip = &s2mu005_irq_chip;
 		break;
         case S2MPU12X:
-                sec_irq_chip = &s2mpu12_irq_chip;
-                break;
+		sec_irq_chip = &s2mpu12_irq_chip;
+		break;
 	default:
 		return dev_err_ptr_probe(sec_pmic->dev, -EINVAL, "Unsupported device type %d\n",
 					 sec_pmic->device_type);

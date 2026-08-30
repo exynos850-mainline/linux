@@ -38,6 +38,7 @@
 
 #define ACPM_POLL_TIMEOUT_US		(100 * USEC_PER_MSEC)
 #define ACPM_TX_TIMEOUT_US		500000
+#define ACPM_IPC_PROTOCOL_INDIRECTION	(29)
 
 #define ACPM_EXYNOS850_INITDATA_BASE	0x7000
 #define ACPM_GS101_INITDATA_BASE	0xa000
@@ -323,6 +324,24 @@ static int acpm_dequeue_by_polling(struct acpm_chan *achan,
 	u32 seqnum;
 	int ret;
 
+        if (xfer->txd[0] & (1 << ACPM_IPC_PROTOCOL_INDIRECTION)) {
+                u32 rear_val;
+
+                /* Replicate the downstream loop using non-sleeping atomic polling */
+                ret = readl_relaxed_poll_timeout_atomic(achan->tx.rear, rear_val,
+                                                        rear_val != achan->tx.rear,
+                                                        0, ACPM_POLL_TIMEOUT_US);
+                if (ret) {
+                        dev_err(dev, "Indirection protocol transaction stalled upstream. Channel:%u\n", achan->id);
+                        return ret;
+                }
+
+                /* Synchronize index trackers manually before bypassing standard completion */
+                seqnum = FIELD_GET(ACPM_PROTOCOL_SEQNUM, xfer->txd[0]);
+                clear_bit_unlock(seqnum - 1, achan->bitmap_seqnum);
+                return 0; /* Successfully intercepted and handled */
+        }
+
 	seqnum = FIELD_GET(ACPM_PROTOCOL_SEQNUM, xfer->txd[0]);
 
 	timeout = ktime_add_us(ktime_get(), ACPM_POLL_TIMEOUT_US);
@@ -367,25 +386,27 @@ static int acpm_dequeue_by_polling(struct acpm_chan *achan,
  */
 static int acpm_wait_for_queue_slots(struct acpm_chan *achan, u32 next_tx_front)
 {
-	u32 val, ret;
+        u32 val, ret;
 
-	/*
-	 * Wait for RX front to keep up with TX front. Make sure there's at
-	 * least one element between them.
-	 */
-	ret = readl_poll_timeout(achan->rx.front, val, next_tx_front != val, 0,
-				 ACPM_TX_TIMEOUT_US);
-	if (ret) {
-		dev_err(achan->acpm->dev, "RX front can not keep up with TX front.\n");
-		return ret;
-	}
+        /*
+         * Wait for RX front to keep up with TX front. Make sure there's at
+         * least one element between them.
+         * NOTE: Ensure achan->rx.front is an __iomem address, otherwise use
+         * readl_relaxed_poll_timeout_atomic if running in non-sleepable contexts.
+         */
+        ret = readl_poll_timeout(achan->rx.front, val, next_tx_front != val, 0,
+                                 ACPM_TX_TIMEOUT_US);
+        if (ret) {
+                dev_err(achan->acpm->dev, "RX front can not keep up with TX front. Val: %u, Next: %u\n", val, next_tx_front);
+                return ret;
+        }
 
-	ret = readl_poll_timeout(achan->tx.rear, val, next_tx_front != val, 0,
-				 ACPM_TX_TIMEOUT_US);
-	if (ret)
-		dev_err(achan->acpm->dev, "TX queue is full.\n");
+        ret = readl_poll_timeout(achan->tx.rear, val, next_tx_front != val, 0,
+                                 ACPM_TX_TIMEOUT_US);
+        if (ret)
+                dev_err(achan->acpm->dev, "TX queue is full.\n");
 
-	return ret;
+        return ret;
 }
 
 /**
