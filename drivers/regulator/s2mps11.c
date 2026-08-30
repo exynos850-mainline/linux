@@ -25,6 +25,7 @@
 #include <linux/mfd/samsung/s2mps15.h>
 #include <linux/mfd/samsung/s2mpu02.h>
 #include <linux/mfd/samsung/s2mpu05.h>
+#include <linux/mfd/samsung/s2mpu12.h>
 
 enum {
 	S2MPG10_REGULATOR_OPS_STD,
@@ -1257,6 +1258,158 @@ static const struct s2mpg10_regulator_desc s2mpg11_regulators[] = {
 	s2mpg11_regulator_desc_ldo(15, "vinl3s", s2mpg11_ldo_vranges3)
 };
 
+/* S2MPU12X */
+static unsigned int s2mpu12_of_map_mode(unsigned int mode)
+{
+	switch (mode) {
+	case REGULATOR_MODE_STANDBY:	/* ON in Standby Mode */
+		return 0x1;
+	case REGULATOR_MODE_IDLE:	/* ON in PWREN_MIF mode */
+		return 0x2;
+	case REGULATOR_MODE_NORMAL:	/* ON in Normal Mode */
+		return 0x3;
+	default:
+		return 0x3;
+	}
+}
+
+static unsigned int s2mpu12_get_ramp_delay(int ramp_delay)
+{
+	unsigned int cnt = 0;
+
+	ramp_delay = (ramp_delay / 1000) / 6;
+
+	while (true) {
+		ramp_delay >>= 1;
+		if (ramp_delay == 0)
+			break;
+		cnt++;
+	}
+
+	return cnt;
+}
+
+static int s2mpu12_buck_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
+{
+	unsigned int ramp_shift, ramp_value;
+	unsigned int ramp_mask = GENMASK(1, 0);
+
+	switch (rdev->desc->id) {
+	case S2MPU12_BUCK1:
+	case S2MPU12_BUCK2:
+		ramp_shift = 6;
+		break;
+	case S2MPU12_BUCK4:
+	case S2MPU12_BUCK5:
+		ramp_shift = 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ramp_value = s2mpu12_get_ramp_delay(ramp_delay);
+	if (ramp_value > 4)
+		dev_warn(&rdev->dev, "%s: ramp_delay %d not supported\n",
+			 rdev->desc->name, ramp_delay);
+
+	return regmap_update_bits(rdev->regmap, S2MPU12_PMIC_BUCK_RISE_RAMP,
+				  ramp_mask << ramp_shift,
+				  ramp_value << ramp_shift);
+}
+
+static const struct regulator_ops s2mpu12_ldo_ops = {
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.of_map_mode		= s2mpu12_of_map_mode,
+};
+
+static const struct regulator_ops s2mpu12_buck_ops = {
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.of_map_mode		= s2mpu12_of_map_mode,
+	.set_ramp_delay		= s2mpu12_buck_set_ramp_delay,
+};
+
+#define S2MPU12_LDO(_num, _min, _step, _en_time) {			\
+	.name		= "LDO" #_num,					\
+	.of_match	= of_match_ptr("ldo" #_num),			\
+	.regulators_node = of_match_ptr("regulators"),			\
+	.id		= S2MPU12_LDO##_num,				\
+	.ops		= &s2mpu12_ldo_ops,				\
+	.type		= REGULATOR_VOLTAGE,				\
+	.owner		= THIS_MODULE,					\
+	.min_uV		= (_min),					\
+	.uV_step	= (_step),					\
+	.n_voltages	= S2MPU12_LDO_N_VOLTAGES,			\
+	.vsel_reg	= S2MPU12_PMIC_L##_num##CTRL,			\
+	.vsel_mask	= S2MPU12_LDO_VSEL_MASK,			\
+	.enable_reg	= S2MPU12_PMIC_L##_num##CTRL,			\
+	.enable_mask	= S2MPU12_ENABLE_MASK,				\
+	.enable_time	= (_en_time),					\
+}
+
+#define S2MPU12_BUCK(_num, _min, _step, _en_time) {			\
+	.name		= "BUCK" #_num,					\
+	.of_match	= of_match_ptr("buck" #_num),			\
+	.regulators_node = of_match_ptr("regulators"),			\
+	.id		= S2MPU12_BUCK##_num,				\
+	.ops		= &s2mpu12_buck_ops,				\
+	.type		= REGULATOR_VOLTAGE,				\
+	.owner		= THIS_MODULE,					\
+	.min_uV		= (_min),					\
+	.uV_step	= (_step),					\
+	.n_voltages	= S2MPU12_BUCK_N_VOLTAGES,			\
+	.vsel_reg	= S2MPU12_PMIC_B##_num##OUT1,			\
+	.vsel_mask	= S2MPU12_BUCK_VSEL_MASK,			\
+	.enable_reg	= S2MPU12_PMIC_B##_num##CTRL,			\
+	.enable_mask	= S2MPU12_ENABLE_MASK,				\
+	.enable_time	= (_en_time),					\
+}
+
+static const struct regulator_desc s2mpu12_regulators[] = {
+	S2MPU12_LDO(1,  S2MPU12_LDO_MIN2, S2MPU12_LDO_STEP2, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(2,  S2MPU12_LDO_MIN4, S2MPU12_LDO_STEP4, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(3,  S2MPU12_LDO_MIN2, S2MPU12_LDO_STEP2, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(4,  S2MPU12_LDO_MIN4, S2MPU12_LDO_STEP4, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(5,  S2MPU12_LDO_MIN2, S2MPU12_LDO_STEP2, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(6,  S2MPU12_LDO_MIN1, S2MPU12_LDO_STEP1, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(7,  S2MPU12_LDO_MIN2, S2MPU12_LDO_STEP2, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(8,  S2MPU12_LDO_MIN3, S2MPU12_LDO_STEP3, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(9,  S2MPU12_LDO_MIN3, S2MPU12_LDO_STEP3, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(10, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(11, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(23, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(24, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(25, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(26, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(27, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(28, S2MPU12_LDO_MIN4, S2MPU12_LDO_STEP4, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(29, S2MPU12_LDO_MIN2, S2MPU12_LDO_STEP2, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(30, S2MPU12_LDO_MIN4, S2MPU12_LDO_STEP4, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(31, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(32, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO),
+	S2MPU12_LDO(33, S2MPU12_LDO_MIN4, S2MPU12_LDO_STEP4, S2MPU12_ENABLE_TIME_LDO), /* ALDO1 */
+	S2MPU12_LDO(34, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5, S2MPU12_ENABLE_TIME_LDO), /* ALDO2 */
+	S2MPU12_LDO(35, S2MPU12_LDO_MIN4, S2MPU12_LDO_STEP4, S2MPU12_ENABLE_TIME_LDO), /* DLDO_CORE */
+	S2MPU12_LDO(36, S2MPU12_LDO_MIN2, S2MPU12_LDO_STEP2, S2MPU12_ENABLE_TIME_LDO), /* DLDO_BUF */
+	S2MPU12_BUCK(1, S2MPU12_BUCK_MIN1, S2MPU12_BUCK_STEP1, S2MPU12_ENABLE_TIME_BUCK1),
+	S2MPU12_BUCK(2, S2MPU12_BUCK_MIN1, S2MPU12_BUCK_STEP1, S2MPU12_ENABLE_TIME_BUCK2),
+	S2MPU12_BUCK(4, S2MPU12_BUCK_MIN2, S2MPU12_BUCK_STEP2, S2MPU12_ENABLE_TIME_BUCK4),
+	S2MPU12_BUCK(5, S2MPU12_BUCK_MIN2, S2MPU12_BUCK_STEP2, S2MPU12_ENABLE_TIME_BUCK5),
+};
+
 static const struct regulator_ops s2mps11_ldo_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
@@ -2192,6 +2345,10 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		regulators = s2mps11_regulators;
 		BUILD_BUG_ON(ARRAY_SIZE(s2mps11_regulators) > S2MPS_REGULATOR_MAX);
 		break;
+	case S2MPU12X:
+		rdev_num = ARRAY_SIZE(s2mpu12_regulators);
+		regulators = s2mpu12_regulators;
+		break;
 	case S2MPS13X:
 		rdev_num = ARRAY_SIZE(s2mps13_regulators);
 		regulators = s2mps13_regulators;
@@ -2274,6 +2431,7 @@ static const struct platform_device_id s2mps11_pmic_id[] = {
 	{ .name = "s2mps15-regulator", .driver_data = S2MPS15X },
 	{ .name = "s2mpu02-regulator", .driver_data = S2MPU02 },
 	{ .name = "s2mpu05-regulator", .driver_data = S2MPU05 },
+        { .name = "s2mpu12-regulator", .driver_data = S2MPU12X },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, s2mps11_pmic_id);
