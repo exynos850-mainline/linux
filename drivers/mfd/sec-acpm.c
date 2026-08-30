@@ -393,10 +393,10 @@ static const struct regmap_config s2mpu12_regmap_config_common = {
 	.name = "common",
 	.reg_bits = ACPM_ADDR_BITS,
 	.val_bits = 8,
-	.max_register = S2MPU12_PMIC_IRQM,
+	.max_register = S2MPU12_PMIC_DCXO_CTRL3,
 	.wr_table = &s2mpu12_common_wr_table,
 	.rd_table = &s2mpu12_common_rd_table,
-	.num_reg_defaults_raw = S2MPU12_PMIC_IRQM + 1,
+	.num_reg_defaults_raw = S2MPU12_PMIC_DCXO_CTRL3 + 1,
 	.cache_type = REGCACHE_FLAT,
 };
 
