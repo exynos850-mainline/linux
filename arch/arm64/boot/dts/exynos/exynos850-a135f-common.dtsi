@@ -96,19 +96,20 @@
 };
 
 &acpm_ipc {
-	pmic-1 {
+	pmic {
 		compatible = "samsung,s2mpu12-pmic";
-		interrupts-extended = <&gpa0 0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&gpg1 5 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
 		system-power-controller;
 		wakeup-source;
 
-		clocks {
-			compatible = "samsung,s2mpu12-clk";
-			#clock-cells = <1>;
-			clock-output-names = "rate_i2c", "gate_i2c";
-		};
+//		clocks {
+//			compatible = "samsung,s2mpu12-clk";
+//			#clock-cells = <1>;
+//			clock-output-names = "rate_i2c", "gate_i2c";
+//		};
 
 		regulators {
 			vdd_cpu: buck1 {
@@ -179,7 +180,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <>;
+				regulator-ramp-delay = <12000>;
 			};
 
 			vdd_ldo6: ldo6 {
@@ -211,7 +212,7 @@
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <>;
+				regulator-ramp-delay = <12000>;
 			};
 
 			/* vqmmc */
@@ -219,7 +220,7 @@
 				regulator-name = "vdd_ldo10";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3375000>;
-				regulator-ramp-delay = <>;
+				regulator-ramp-delay = <12000>;
 			};
 
 			vdd_ldo11: ldo11 {
@@ -363,7 +364,7 @@
 
 &pinctrl_alive {
         pmic_int: pmic-int-pins {
-                samsung,pins = "gpa0-0";
+                samsung,pins = "gpa1-5";
                 samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
                 samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
