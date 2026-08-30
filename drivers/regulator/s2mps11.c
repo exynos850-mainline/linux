@@ -1259,20 +1259,6 @@ static const struct s2mpg10_regulator_desc s2mpg11_regulators[] = {
 };
 
 /* S2MPU12X */
-static unsigned int s2mpu12_of_map_mode(unsigned int mode)
-{
-	switch (mode) {
-	case REGULATOR_MODE_STANDBY:	/* ON in Standby Mode */
-		return 0x1;
-	case REGULATOR_MODE_IDLE:	/* ON in PWREN_MIF mode */
-		return 0x2;
-	case REGULATOR_MODE_NORMAL:	/* ON in Normal Mode */
-		return 0x3;
-	default:
-		return 0x3;
-	}
-}
-
 static unsigned int s2mpu12_get_ramp_delay(int ramp_delay)
 {
 	unsigned int cnt = 0;
@@ -1326,7 +1312,6 @@ static const struct regulator_ops s2mpu12_ldo_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
-	.of_map_mode		= s2mpu12_of_map_mode,
 };
 
 static const struct regulator_ops s2mpu12_buck_ops = {
@@ -1338,7 +1323,6 @@ static const struct regulator_ops s2mpu12_buck_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
-	.of_map_mode		= s2mpu12_of_map_mode,
 	.set_ramp_delay		= s2mpu12_buck_set_ramp_delay,
 };
 
