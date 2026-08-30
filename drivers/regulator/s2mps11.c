@@ -25,7 +25,6 @@
 #include <linux/mfd/samsung/s2mps15.h>
 #include <linux/mfd/samsung/s2mpu02.h>
 #include <linux/mfd/samsung/s2mpu05.h>
-#include <linux/mfd/samsung/s2mpu12.h>
 
 enum {
 	S2MPG10_REGULATOR_OPS_STD,
@@ -2128,22 +2127,6 @@ static const struct regulator_desc s2mpu05_regulators[] = {
 	regulator_desc_s2mpu05_buck45(5),
 };
 
-#define regulator_desc_s2mpu05_ldo_reg(num, min, step, reg) {	\
-	.name		= "ldo"#num,				\
-	.id		= S2MPU05_LDO##num,			\
-	.ops		= &s2mpu02_ldo_ops,			\
-	.type		= REGULATOR_VOLTAGE,			\
-	.owner		= THIS_MODULE,				\
-	.min_uV		= min,					\
-	.uV_step	= step,					\
-	.n_voltages	= S2MPU05_LDO_N_VOLTAGES,		\
-	.vsel_reg	= reg,					\
-	.vsel_mask	= S2MPU05_LDO_VSEL_MASK,		\
-	.enable_reg	= reg,					\
-	.enable_mask	= S2MPU05_ENABLE_MASK,			\
-	.enable_time	= S2MPU05_ENABLE_TIME_LDO		\
-}
-
 static int s2mps11_handle_ext_control(struct s2mps11_info *s2mps11,
 				      struct regulator_dev *rdev)
 {
@@ -2176,88 +2159,6 @@ static int s2mps11_handle_ext_control(struct s2mps11_info *s2mps11,
 
 	return ret;
 }
-
-#define regulator_desc_s2mpu12_ldo_reg(num, min, step, reg) {	\
-	.name		= "ldo"#num,				\
-	.id		= S2MPU12_LDO##num,			\
-	.ops		= &s2mpu02_ldo_ops,			\
-	.type		= REGULATOR_VOLTAGE,			\
-	.owner		= THIS_MODULE,				\
-	.min_uV		= min,					\
-	.uV_step	= step,					\
-	.n_voltages	= S2MPU12_LDO_N_VOLTAGES,		\
-	.vsel_reg	= reg,					\
-	.vsel_mask	= S2MPU12_LDO_VSEL_MASK,		\
-	.enable_reg	= reg,					\
-	.enable_mask	= S2MPU12_ENABLE_MASK,			\
-	.enable_time	= S2MPU12_ENABLE_TIME_LDO		\
-}
-#define regulator_desc_s2mpu12_ldo(num, reg, min, step) \
-	regulator_desc_s2mpu12_ldo_reg(num, min, step, S2MPU12_PMIC_L##num##reg)
-#define regulator_desc_s2mpu12_ldo1(num, reg) \
-	regulator_desc_s2mpu12_ldo(num, reg, S2MPU12_LDO_MIN1, S2MPU12_LDO_STEP1)
-#define regulator_desc_s2mpu12_ldo2(num, reg) \
-	regulator_desc_s2mpu12_ldo(num, reg, S2MPU12_LDO_MIN2, S2MPU12_LDO_STEP2)
-#define regulator_desc_s2mpu12_ldo3(num, reg) \
-	regulator_desc_s2mpu12_ldo(num, reg, S2MPU12_LDO_MIN3, S2MPU12_LDO_STEP3)
-#define regulator_desc_s2mpu12_ldo4(num, reg) \
-	regulator_desc_s2mpu12_ldo(num, reg, S2MPU12_LDO_MIN4, S2MPU12_LDO_STEP4)
-#define regulator_desc_s2mpu12_ldo5(num, reg) \
-	regulator_desc_s2mpu12_ldo(num, reg, S2MPU12_LDO_MIN5, S2MPU12_LDO_STEP5)
-
-#define regulator_desc_s2mpu12_buck(num, which) {		\
-	.name		= "buck"#num,				\
-	.id		= S2MPU12_BUCK##num,			\
-	.ops		= &s2mpu02_buck_ops,			\
-	.type		= REGULATOR_VOLTAGE,			\
-	.owner		= THIS_MODULE,				\
-	.min_uV		= S2MPU12_BUCK_MIN##which,		\
-	.uV_step	= S2MPU12_BUCK_STEP##which,		\
-	.n_voltages	= S2MPU12_BUCK_N_VOLTAGES,		\
-	.vsel_reg	= S2MPU12_PMIC_B##num##OUT1,		\
-	.vsel_mask	= S2MPU12_BUCK_VSEL_MASK,		\
-	.enable_reg	= S2MPU12_PMIC_B##num##CTRL,		\
-	.enable_mask	= S2MPU12_ENABLE_MASK,			\
-	.enable_time	= S2MPU12_ENABLE_TIME_BUCK##num	\
-}
-#define regulator_desc_s2mpu12_buck12(num) regulator_desc_s2mpu12_buck(num, 1)
-#define regulator_desc_s2mpu12_buck4(num)  regulator_desc_s2mpu12_buck(num, 2)
-#define regulator_desc_s2mpu12_buck5(num)  regulator_desc_s2mpu12_buck(num, 3)
-
-static const struct regulator_desc s2mpu12_regulators[] = {
-	regulator_desc_s2mpu12_ldo2(1, CTRL),
-	regulator_desc_s2mpu12_ldo4(2, CTRL),
-	regulator_desc_s2mpu12_ldo2(3, CTRL),
-	regulator_desc_s2mpu12_ldo4(4, CTRL),
-	regulator_desc_s2mpu12_ldo2(5, CTRL),
-	regulator_desc_s2mpu12_ldo1(6, CTRL),
-	regulator_desc_s2mpu12_ldo2(7, CTRL),
-	regulator_desc_s2mpu12_ldo_reg(8, S2MPU12_LDO_MIN3, S2MPU12_LDO_STEP3,
-					S2MPU12_PMIC_DVS_LDO8_CTRL),
-	regulator_desc_s2mpu12_ldo_reg(9, S2MPU12_LDO_MIN3, S2MPU12_LDO_STEP3,
-					S2MPU12_PMIC_DVS_LDO9_CTRL),
-	regulator_desc_s2mpu12_ldo5(10, CTRL),
-	regulator_desc_s2mpu12_ldo5(11, CTRL),
-	/* LDOs 12-22 unused/CP-only, not exposed */
-	regulator_desc_s2mpu12_ldo5(23, CTRL),
-	regulator_desc_s2mpu12_ldo5(24, CTRL),
-	regulator_desc_s2mpu12_ldo5(25, CTRL),
-	regulator_desc_s2mpu12_ldo5(26, CTRL),
-	regulator_desc_s2mpu12_ldo5(27, CTRL),
-	regulator_desc_s2mpu12_ldo4(28, CTRL),
-	regulator_desc_s2mpu12_ldo2(29, CTRL),
-	regulator_desc_s2mpu12_ldo4(30, CTRL),
-	regulator_desc_s2mpu12_ldo5(31, CTRL),
-	regulator_desc_s2mpu12_ldo5(32, CTRL),
-	regulator_desc_s2mpu12_ldo4(33, CTRL),
-	regulator_desc_s2mpu12_ldo5(34, CTRL),
-	regulator_desc_s2mpu12_ldo4(35, CTRL),
-	regulator_desc_s2mpu12_ldo2(36, CTRL),
-	regulator_desc_s2mpu12_buck12(1),
-	regulator_desc_s2mpu12_buck12(2),
-	regulator_desc_s2mpu12_buck4(4),
-	regulator_desc_s2mpu12_buck5(5),
-};
 
 static int s2mps11_pmic_probe(struct platform_device *pdev)
 {
@@ -2373,7 +2274,6 @@ static const struct platform_device_id s2mps11_pmic_id[] = {
 	{ .name = "s2mps15-regulator", .driver_data = S2MPS15X },
 	{ .name = "s2mpu02-regulator", .driver_data = S2MPU02 },
 	{ .name = "s2mpu05-regulator", .driver_data = S2MPU05 },
-	{ .name = "s2mpu12-regulator", .driver_data = S2MPU12X },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, s2mps11_pmic_id);
@@ -2391,5 +2291,5 @@ module_platform_driver(s2mps11_pmic_driver);
 
 /* Module information */
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");
-MODULE_DESCRIPTION("Samsung S2MPS11/14/15/S2MPU02/05/12 Regulator Driver");
+MODULE_DESCRIPTION("Samsung S2MPS11/14/15/S2MPU02/05 Regulator Driver");
 MODULE_LICENSE("GPL");
