@@ -35,6 +35,59 @@
 		};
 	};
 
+	/*
+	 * System controller windows used by the WLBT connectivity
+	 * subsystem below to configure its bus address access windows
+	 * and boot configuration.
+	 */
+	syscon_i3c_apm_pmic: syscon@11a50000 {
+		compatible = "syscon";
+		reg = <0x0 0x11a50000 0x1800>;
+	};
+
+	syscon_dbus_baaw: syscon@14c20000 {
+		compatible = "syscon";
+		reg = <0x0 0x14c20000 0x300>;
+	};
+
+	syscon_pbus_baaw: syscon@14c30000 {
+		compatible = "syscon";
+		reg = <0x0 0x14c30000 0x300>;
+	};
+
+	syscon_wlbt_remap: syscon@14c50000 {
+		compatible = "syscon";
+		reg = <0x0 0x14c50000 0x500>;
+	};
+
+	syscon_boot_cfg: syscon@14c60000 {
+		compatible = "syscon";
+		reg = <0x0 0x14c60000 0x1200>;
+	};
+
+	wlbt: wlbt@119c0000 {
+		compatible = "samsung,exynos850-wlbt";
+		reg = <0x0 0x119c0000 0x180>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "MBOX", "ALIVE", "CFG_REQ", "WDOG";
+
+		samsung,syscon-phandle = <&pmu_system_controller>;
+		samsung,i3c_apm_pmic-syscon-phandle = <&syscon_i3c_apm_pmic>;
+		samsung,dbus_baaw-syscon-phandle = <&syscon_dbus_baaw>;
+		samsung,pbus_baaw-syscon-phandle = <&syscon_pbus_baaw>;
+		samsung,wlbt_remap-syscon-phandle = <&syscon_wlbt_remap>;
+		samsung,boot_cfg-syscon-phandle = <&syscon_boot_cfg>;
+
+		qos_table = <0x664b8 0x186a0 0x62638 0xe4840
+			     0xf78f0 0x82208 0xde2b0 0x196400
+			     0x1fefc8 0xa2d78 0x1a94b0 0x234f10>;
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
