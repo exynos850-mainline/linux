@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Samsung misc drivers
+
+source "drivers/misc/samsung/kic/Kconfig"
+source "drivers/misc/samsung/scsc/Kconfig"
