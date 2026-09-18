@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/wireless/samsung,exynos850-wlbt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos850 WLBT connectivity subsystem
+
+maintainers:
+  - bruhboy666 <bruhboy666@users.noreply.github.com>
+
+description: |
+  The Exynos850 (S5E3830) SoC integrates a WLBT connectivity subsystem
+  (Maxwell MX140 class) providing WLAN (and, with additional service
+  drivers, Bluetooth) functionality.  The subsystem is accessed through
+  a MIF mailbox interface rather than a serial bus like SDIO.
+
+  The subsystem is powered by LDOs of the slave PMIC which are normally
+  controlled by the APM firmware; where the firmware does not manage
+  them, the host can request the required LDO setup through the ACPM
+  PMIC protocol via the optional samsung,acpm-ipc property.
+
+properties:
+  compatible:
+    const: samsung,exynos850-wlbt
+
+  reg:
+    maxItems: 1
+    description: MIF mailbox interface registers of the WLBT subsystem.
+
+  interrupts:
+    items:
+      - description: Mailbox interrupt (MBOX)
+      - description: Alive interrupt (ALIVE)
+      - description: Configuration request interrupt (CFG_REQ)
+      - description: Watchdog interrupt (WDOG)
+
+  interrupt-names:
+    items:
+      - const: MBOX
+      - const: ALIVE
+      - const: CFG_REQ
+      - const: WDOG
+
+  samsung,syscon-phandle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the PMU system controller node containing the WLBT
+      control registers (WLBT_CTRL_NS/S, WLBT_DEBUG).
+
+  samsung,i3c_apm_pmic-syscon-phandle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the I3C APM PMIC system controller window.
+
+  samsung,dbus_baaw-syscon-phandle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the D-Bus BAAW (bus address access window) system controller.
+
+  samsung,pbus_baaw-syscon-phandle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the P-Bus BAAW (bus address access window) system controller.
+
+  samsung,wlbt_remap-syscon-phandle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the WLBT remap system controller.
+
+  samsung,boot_cfg-syscon-phandle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the boot configuration system controller.
+
+  samsung,acpm-ipc:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the ACPM firmware IPC node used to power up the WLBT
+      LDOs of the slave PMIC.  Optional; when absent the driver assumes
+      the WLBT supplies are managed by the APM firmware or the bootloader.
+
+  qos_table:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: |
+      PM QoS frequency limits applied while the WLBT subsystem is active.
+      Each row consists of the MIF, INT, cluster 0 and cluster 1
+      frequencies in kHz for one of the QoS configurations.
+    maxItems: 3
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - samsung,syscon-phandle
+  - samsung,i3c_apm_pmic-syscon-phandle
+  - samsung,dbus_baaw-syscon-phandle
+  - samsung,pbus_baaw-syscon-phandle
+  - samsung,wlbt_remap-syscon-phandle
+  - samsung,boot_cfg-syscon-phandle
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    wlbt@119c0000 {
+        compatible = "samsung,exynos850-wlbt";
+        reg = <0x119c0000 0x180>;
+        interrupt-parent = <&gic>;
+        interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "MBOX", "ALIVE", "CFG_REQ", "WDOG";
+        samsung,syscon-phandle = <&pmu_system_controller>;
+        samsung,i3c_apm_pmic-syscon-phandle = <&syscon_i3c_apm_pmic>;
+        samsung,dbus_baaw-syscon-phandle = <&syscon_dbus_baaw>;
+        samsung,pbus_baaw-syscon-phandle = <&syscon_pbus_baaw>;
+        samsung,wlbt_remap-syscon-phandle = <&syscon_wlbt_remap>;
+        samsung,boot_cfg-syscon-phandle = <&syscon_boot_cfg>;
+    };
