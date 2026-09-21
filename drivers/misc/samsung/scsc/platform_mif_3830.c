@@ -28,6 +28,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 #include <scsc/scsc_logring.h>
 #include "mif_reg_S5E3830.h"
 #include "platform_mif_module.h"
@@ -46,8 +47,7 @@ static struct {
 	.revision = 0,
 };
 
-/* EL3 commands used to configure the WLBT TZPC, from the exynos SMC protocol */
-#define SMC_CMD_CONN_IF			0x82000710
+/* EL3 command selector used to configure WLBT TZPC. */
 #define EXYNOS_SET_CONN_TZPC		0
 
 #ifdef CONFIG_SCSC_SMAPPER
@@ -496,10 +496,10 @@ static int platform_mif_pm_qos_add_request(struct scsc_mif_abs *interface, struc
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
 		"PM QoS add request: %u. MIF %u INT %u CL0 %u CL1 %u\n", config, table.freq_mif, table.freq_int, table.freq_cl0, table.freq_cl1);
 
-	pm_qos_add_request(&qos_req->pm_qos_req_mif, PM_QOS_BUS_THROUGHPUT, table.freq_mif);
-	pm_qos_add_request(&qos_req->pm_qos_req_int, PM_QOS_DEVICE_THROUGHPUT, table.freq_int);
-	pm_qos_add_request(&qos_req->pm_qos_req_cl0, PM_QOS_CLUSTER0_FREQ_MIN, table.freq_cl0);
-	pm_qos_add_request(&qos_req->pm_qos_req_cl1, PM_QOS_CLUSTER1_FREQ_MIN, table.freq_cl1);
+	scsc_pm_qos_add_request(&qos_req->pm_qos_req_mif, table.freq_mif);
+	scsc_pm_qos_add_request(&qos_req->pm_qos_req_int, table.freq_int);
+	scsc_pm_qos_add_request(&qos_req->pm_qos_req_cl0, table.freq_cl0);
+	scsc_pm_qos_add_request(&qos_req->pm_qos_req_cl1, table.freq_cl1);
 
 	return 0;
 }
@@ -522,10 +522,10 @@ static int platform_mif_pm_qos_update_request(struct scsc_mif_abs *interface, st
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
 		"PM QoS update request: %u. MIF %u INT %u CL0 %u CL1 %u\n", config, table.freq_mif, table.freq_int, table.freq_cl0, table.freq_cl1);
 
-	pm_qos_update_request(&qos_req->pm_qos_req_mif, table.freq_mif);
-	pm_qos_update_request(&qos_req->pm_qos_req_int, table.freq_int);
-	pm_qos_update_request(&qos_req->pm_qos_req_cl0, table.freq_cl0);
-	pm_qos_update_request(&qos_req->pm_qos_req_cl1, table.freq_cl1);
+	scsc_pm_qos_update_request(&qos_req->pm_qos_req_mif, table.freq_mif);
+	scsc_pm_qos_update_request(&qos_req->pm_qos_req_int, table.freq_int);
+	scsc_pm_qos_update_request(&qos_req->pm_qos_req_cl0, table.freq_cl0);
+	scsc_pm_qos_update_request(&qos_req->pm_qos_req_cl1, table.freq_cl1);
 
 	return 0;
 }
@@ -544,10 +544,10 @@ static int platform_mif_pm_qos_remove_request(struct scsc_mif_abs *interface, st
 	}
 
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "PM QoS remove request\n");
-	pm_qos_remove_request(&qos_req->pm_qos_req_mif);
-	pm_qos_remove_request(&qos_req->pm_qos_req_int);
-	pm_qos_remove_request(&qos_req->pm_qos_req_cl0);
-	pm_qos_remove_request(&qos_req->pm_qos_req_cl1);
+	scsc_pm_qos_remove_request(&qos_req->pm_qos_req_mif);
+	scsc_pm_qos_remove_request(&qos_req->pm_qos_req_int);
+	scsc_pm_qos_remove_request(&qos_req->pm_qos_req_cl0);
+	scsc_pm_qos_remove_request(&qos_req->pm_qos_req_cl1);
 
 	return 0;
 }
@@ -1833,8 +1833,11 @@ static void platform_mif_restart(struct scsc_mif_abs *interface)
 }
 
 #ifdef CONFIG_OF_RESERVED_MEM
-static int __init platform_mif_wifibt_if_reserved_mem_setup(struct reserved_mem *remem)
+static int platform_mif_wifibt_if_reserved_mem_setup(unsigned long node,
+								struct reserved_mem *remem)
 {
+	(void)node;
+
 	SCSC_TAG_DEBUG(PLAT_MIF, "memory reserved: mem_base=%#lx, mem_size=%zd\n",
 		       (unsigned long)remem->base, (size_t)remem->size);
 
@@ -1842,7 +1845,13 @@ static int __init platform_mif_wifibt_if_reserved_mem_setup(struct reserved_mem 
 	sharedmem_size = remem->size;
 	return 0;
 }
-RESERVEDMEM_OF_DECLARE(wifibt_if, "exynos,wifibt_if", platform_mif_wifibt_if_reserved_mem_setup);
+
+static const struct reserved_mem_ops platform_mif_wifibt_if_reserved_mem_ops = {
+	.node_init = platform_mif_wifibt_if_reserved_mem_setup,
+};
+
+RESERVEDMEM_OF_DECLARE(wifibt_if, "exynos,wifibt_if",
+			       &platform_mif_wifibt_if_reserved_mem_ops);
 #endif
 
 struct scsc_mif_abs *platform_mif_create(struct platform_device *pdev)
@@ -1979,44 +1988,36 @@ struct scsc_mif_abs *platform_mif_create(struct platform_device *pdev)
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "platform->reg_start %lx size %x base %p\n",
 		(uintptr_t)platform->reg_start, (u32)platform->reg_size, platform->base);
 
-	/* Get the 4 IRQ resources */
-	for (i = 0; i < 4; i++) {
-		struct resource *irq_res;
-		int             irqtag;
+	/* Get the 4 IRQ resources by name from device tree */
+	{
+		static const struct {
+			const char *name;
+			int tag;
+		} wlbt_irq_map[] = {
+			{ "MBOX",    PLATFORM_MIF_MBOX },
+			{ "ALIVE",   PLATFORM_MIF_ALIVE },
+			{ "WDOG",    PLATFORM_MIF_WDOG },
+			{ "CFG_REQ", PLATFORM_MIF_CFG_REQ },
+		};
 
-		irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		if (!irq_res) {
-			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-				"No IRQ resource at index %d\n", i);
-			err = -ENOENT;
-			goto error_exit;
-		}
+		for (i = 0; i < ARRAY_SIZE(wlbt_irq_map); i++) {
+			int irq = platform_get_irq_byname(pdev, wlbt_irq_map[i].name);
 
-		if (!strcmp(irq_res->name, "MBOX")) {
-			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "MBOX irq %d flag 0x%x\n",
-				(u32)irq_res->start, (u32)irq_res->flags);
-			irqtag = PLATFORM_MIF_MBOX;
-		} else if (!strcmp(irq_res->name, "ALIVE")) {
-			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "ALIVE irq %d flag 0x%x\n",
-				(u32)irq_res->start, (u32)irq_res->flags);
-			irqtag = PLATFORM_MIF_ALIVE;
-		} else if (!strcmp(irq_res->name, "WDOG")) {
-			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "WDOG irq %d flag 0x%x\n",
-				(u32)irq_res->start, (u32)irq_res->flags);
-			irqtag = PLATFORM_MIF_WDOG;
-		} else if (!strcmp(irq_res->name, "CFG_REQ")) {
-			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "CFG_REQ irq %d flag 0x%x\n",
-				(u32)irq_res->start, (u32)irq_res->flags);
-			irqtag = PLATFORM_MIF_CFG_REQ;
-		} else {
-			SCSC_TAG_ERR_DEV(PLAT_MIF, &pdev->dev, "Invalid irq res name: %s\n",
-				irq_res->name);
-			err = -EINVAL;
-			goto error_exit;
+			if (irq < 0) {
+				SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+					"Failed to get IRQ '%s': %d\n",
+					wlbt_irq_map[i].name, irq);
+				err = irq;
+				goto error_exit;
+			}
+
+			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+				"%s irq %d\n", wlbt_irq_map[i].name, irq);
+
+			platform->wlbt_irq[wlbt_irq_map[i].tag].irq_num = irq;
+			platform->wlbt_irq[wlbt_irq_map[i].tag].flags = IRQF_TRIGGER_HIGH;
+			atomic_set(&platform->wlbt_irq[wlbt_irq_map[i].tag].irq_disabled_cnt, 0);
 		}
-		platform->wlbt_irq[irqtag].irq_num = irq_res->start;
-		platform->wlbt_irq[irqtag].flags = (irq_res->flags & IRQF_TRIGGER_MASK);
-		atomic_set(&platform->wlbt_irq[irqtag].irq_disabled_cnt, 0);
 	}
 
 	/* PMU reg map - syscon */
@@ -2196,7 +2197,8 @@ static void power_supplies_on(struct platform_mif *platform)
 	 * ACPM IPC channel of the slave PMIC, its Speedy channel and the
 	 * PMIC access type of the ACPM PMIC protocol.
 	 */
-	const unsigned int acpm_chan_id = 2;
+	/* S2MPU12 PMIC transport is ACPM channel 0 in the downstream DT. */
+	const unsigned int acpm_chan_id = 0;
 	const u8 speedy_channel = 0;
 	const u8 accesstype = 0x1;
 

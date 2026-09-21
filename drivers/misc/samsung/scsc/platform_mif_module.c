@@ -83,7 +83,7 @@ static int platform_mif_module_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int platform_mif_module_remove(struct platform_device *pdev)
+static void platform_mif_module_remove(struct platform_device *pdev)
 {
 	struct mif_abs_node *mif_node, *next;
 	bool                match = false;
@@ -99,8 +99,6 @@ static int platform_mif_module_remove(struct platform_device *pdev)
 	}
 	if (match == false)
 		SCSC_TAG_ERR(PLAT_MIF, "No match for given scsc_mif_abs\n");
-
-	return 0;
 }
 
 static int platform_mif_module_suspend(struct device *dev)
