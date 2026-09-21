@@ -8,6 +8,7 @@
 #include <linux/version.h>
 #include <linux/firmware.h>
 #include <linux/fs.h>
+#include <linux/namei.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -16,7 +17,6 @@
 
 #include "scsc_mx_impl.h"
 
-MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 
 /* Firmware directory definitions */
 
@@ -107,7 +107,6 @@ static char exe_dir[] = CONFIG_SCSC_CORE_TOOL_LOCATION;	/* fixed in defconfig */
 #endif
 
 static char base_dir_request_fw[] = "../etc/wifi";  /* fixed in defconfig */
-
 
 static bool enable_auto_sense;
 module_param(enable_auto_sense, bool, S_IRUGO | S_IWUSR);
@@ -363,7 +362,6 @@ done:
 	return r;
 }
 
-
 int __mx140_request_firmware(struct scsc_mx *mx, char *path, const struct firmware **firmp)
 {
 	int ret;
@@ -392,7 +390,6 @@ int mx140_request_file(struct scsc_mx *mx, char *path, const struct firmware **f
 	return __mx140_request_firmware(mx, path, firmp);
 }
 EXPORT_SYMBOL(mx140_request_file);
-
 
 int __mx140_release_firmware(struct scsc_mx *mx, const struct firmware *firmp)
 {

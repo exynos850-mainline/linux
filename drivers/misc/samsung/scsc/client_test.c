@@ -389,7 +389,7 @@ static int __init scsc_client_test_module_init(void)
 		goto fail_add_cdev;
 	}
 
-	client_test_class = class_create(THIS_MODULE, "sample");
+	client_test_class = class_create("sample");
 	if (!client_test_class) {
 		r = -EEXIST;
 		SCSC_TAG_ERR(MXMAN_TEST, "failed to create class\n");

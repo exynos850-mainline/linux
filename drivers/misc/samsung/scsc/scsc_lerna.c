@@ -189,7 +189,7 @@ int scsc_lerna_init(void)
 		return result;
 	}
 
-	scsc_lerna_class_p = class_create(THIS_MODULE, DEVICE_CLASS);
+	scsc_lerna_class_p = class_create(DEVICE_CLASS);
 	if (IS_ERR(scsc_lerna_class_p)) {
 		/* Could not create class, failure, remember to unregister device id(s). */
 		unregister_chrdev_region(scsc_lerna_device_id, DEVICE_COUNT);

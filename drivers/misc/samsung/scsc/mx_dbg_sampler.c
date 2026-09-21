@@ -699,7 +699,7 @@ static int __init mx_dbg_sampler_init(void)
 	if (ret)
 		goto error;
 
-	mx_dbg_sampler.class_mx_dbg_sampler = class_create(THIS_MODULE, DEVICE_NAME);
+	mx_dbg_sampler.class_mx_dbg_sampler = class_create(DEVICE_NAME);
 	if (IS_ERR(mx_dbg_sampler.class_mx_dbg_sampler)) {
 		SCSC_TAG_ERR(MX_SAMPLER, "mx_dbg_sampler class creation failed\n");
 		ret = PTR_ERR(mx_dbg_sampler.class_mx_dbg_sampler);

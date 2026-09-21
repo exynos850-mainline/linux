@@ -275,7 +275,7 @@ static int msg_from_wlbtd_build_type_cb(struct sk_buff *skb, struct genl_info *i
 		return -EINVAL;
         }
 
-	strncpy(build_type, (const char *)build_type_str, PROP_VALUE_MAX);
+	strscpy(build_type, (const char *)build_type_str, PROP_VALUE_MAX);
 	SCSC_TAG_INFO(WLBTD, "ro.build.type = %s\n", build_type);
 	mutex_unlock(&build_type_lock);
 	return 0;

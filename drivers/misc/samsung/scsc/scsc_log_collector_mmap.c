@@ -93,7 +93,7 @@ int scsc_log_collector_mmap_create(void)
 	}
 
 	/* Create a class : appears at /sys/class */
-	scsc_log_collector_class = class_create(THIS_MODULE, "scsc_log_collector_class");
+	scsc_log_collector_class = class_create("scsc_log_collector_class");
 	if (IS_ERR(scsc_log_collector_class)) {
 		ret = PTR_ERR(scsc_log_collector_class);
 		goto error_class;

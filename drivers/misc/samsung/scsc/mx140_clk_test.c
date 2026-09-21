@@ -127,7 +127,7 @@ void mx140_clk_test_init(void)
 		goto fail_add_cdev;
 	}
 
-	mx140_clk_test_class = class_create(THIS_MODULE, "mx140_clk_test");
+	mx140_clk_test_class = class_create("mx140_clk_test");
 	if (!mx140_clk_test_class) {
 		ret = -EEXIST;
 		SCSC_TAG_ERR(CLK20_TEST, "failed to create class\n");

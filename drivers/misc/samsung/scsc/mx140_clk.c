@@ -81,19 +81,20 @@ static u32 proc_count;
 		.proc_read = mx_procfs_ ## name ## _read,                        \
 		.proc_write = mx_procfs_ ## name ## _write,                      \
 		.proc_open = mx_clk20_procfs_generic_open,                     \
-		.proc_llseek = generic_file_llseek                                 \
+		.proc_lseek = generic_file_llseek                                 \
 	}
 #define MX_CLK20_PROCFS_RO_FILE_OPS(name)                                           \
 	static ssize_t                      mx_procfs_ ## name ## _read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos); \
 	static const struct proc_ops mx_procfs_ ## name ## _fops = { \
 		.proc_read = mx_procfs_ ## name ## _read,                        \
 		.proc_open = mx_clk20_procfs_generic_open,                                  \
-		.proc_llseek = generic_file_llseek                               \
+		.proc_lseek = generic_file_llseek                               \
 	}
 
 #define MX_pde_data(inode) pde_data(inode)
 
 /* proc entry ownership is root on mainline; Android AID tables are not used */
+#define MX_CLK20_PROCFS_SET_UID_GID(_entry)
 
 #define MX_CLK20_PROCFS_ADD_FILE(_sdev, name, parent, mode)                      \
 	do {                                                               \

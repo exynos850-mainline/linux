@@ -676,7 +676,7 @@ static int samlog_devfs_init(struct scsc_debugfs_info *di)
 		return ret;
 	}
 
-	di->logring_class = class_create(THIS_MODULE, DRV_NAME);
+	di->logring_class = class_create(DRV_NAME);
 	if (IS_ERR(di->logring_class)) {
 		unregister_chrdev_region(di->devt, LOGRING_MAX_DEV);
 		pr_err("%s. Failed to create character class\n", __func__);

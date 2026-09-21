@@ -338,7 +338,7 @@ int scsc_mx_service_start(struct scsc_service *service, scsc_mifram_ref ref)
 	if (srvman_start_not_allowed(srvman)) {
 		tval = ns_to_timespec64(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lld.%06lld]\n",
-				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);
+				mxman->scsc_panic_code, tval.tv_sec, tval.tv_nsec / NSEC_PER_USEC);
 
 		/* Print the last panic record to help track ancient failures */
 		mxman_show_last_panic(mxman);
@@ -432,7 +432,7 @@ int scsc_mx_service_stop(struct scsc_service *service)
 	if (srvman_start_stop_not_allowed(srvman)) {
 		tval = ns_to_timespec64(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lld.%06lld]\n",
-				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);
+				mxman->scsc_panic_code, tval.tv_sec, tval.tv_nsec / NSEC_PER_USEC);
 
 		/* Print the last panic record to help track ancient failures */
 		mxman_show_last_panic(mxman);
@@ -713,7 +713,7 @@ int scsc_mx_service_close(struct scsc_service *service)
 	if (srvman_start_stop_not_allowed(srvman)) {
 		tval = ns_to_timespec64(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lld.%06lld]\n",
-				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);
+				mxman->scsc_panic_code, tval.tv_sec, tval.tv_nsec / NSEC_PER_USEC);
 
 		/* Print the last panic record to help track ancient failures */
 		mxman_show_last_panic(mxman);
@@ -795,7 +795,7 @@ struct scsc_service *scsc_mx_service_open(struct scsc_mx *mx, enum scsc_service_
 	if (srvman_start_not_allowed(srvman)) {
 		tval = ns_to_timespec64(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lld.%06lld]\n",
-				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);
+				mxman->scsc_panic_code, tval.tv_sec, tval.tv_nsec / NSEC_PER_USEC);
 		/* Print the last panic record to help track ancient failures */
 		mxman_show_last_panic(mxman);
 #ifdef CONFIG_ANDROID

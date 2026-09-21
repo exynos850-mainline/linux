@@ -36,7 +36,7 @@ void pcie_mbox_intgen_init(
 	struct functor                          *trigger_interrupt_fn
 	)
 {
-	strncpy(intgen->name, name, sizeof(intgen->name));
+	strscpy(intgen->name, name, sizeof(intgen->name));
 	intgen->shared_data = shared_data;
 	intgen->trigger_interrupt_fn = trigger_interrupt_fn;
 }

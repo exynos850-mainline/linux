@@ -27,11 +27,9 @@ static void mifintrbit_default_handler(int irq, void *data)
 
 static void print_bitmaps(struct mifintrbit *intr)
 {
-	unsigned long dst1, dst2, dst3;
-
-	bitmap_copy_le(&dst1, intr->bitmap_tohost, MIFINTRBIT_NUM_INT);
-	bitmap_copy_le(&dst2, intr->bitmap_fromhost_r4, MIFINTRBIT_NUM_INT);
-	bitmap_copy_le(&dst3, intr->bitmap_fromhost_m4, MIFINTRBIT_NUM_INT);
+	SCSC_TAG_ERR(MIF, "tohost 0x%lx fromhost_r4 0x%lx fromhost_m4 0x%lx\n",
+		     intr->bitmap_tohost[0], intr->bitmap_fromhost_r4[0],
+		     intr->bitmap_fromhost_m4[0]);
 }
 
 static void mifiintrman_isr(int irq, void *data)

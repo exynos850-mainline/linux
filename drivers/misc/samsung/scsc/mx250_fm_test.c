@@ -108,7 +108,7 @@ void mx250_fm_test_init(void)
 		goto fail_add_cdev;
 	}
 
-	mx250_fm_test_class = class_create(THIS_MODULE, "mx250_fm_test");
+	mx250_fm_test_class = class_create("mx250_fm_test");
 	if (!mx250_fm_test_class) {
 		ret = -EEXIST;
 		SCSC_TAG_ERR(FM_TEST, "failed to create class\n");

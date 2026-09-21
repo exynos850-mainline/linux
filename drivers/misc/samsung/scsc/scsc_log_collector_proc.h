@@ -23,11 +23,12 @@
 		.proc_read = log_collect_procfs_ ## name ## _read,                        \
 		.proc_write = log_collect_procfs_ ## name ## _write,                      \
 		.proc_open = log_collect_procfs_open_file_generic,                     \
-		.proc_llseek = generic_file_llseek                                 \
+		.proc_lseek = generic_file_llseek                                 \
 	}
 
 
 /* proc entry ownership is root on mainline; Android AID tables are not used */
+#define LOG_COLLECT_PROCFS_SET_UID_GID(entry)
 
 #define LOG_COLLECT_PROCFS_ADD_FILE(_sdev, name, parent, mode)                      \
 	do {                                                               \

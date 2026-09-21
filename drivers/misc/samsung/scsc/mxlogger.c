@@ -90,7 +90,7 @@ static int mxlogger_force_to_host_set_param_cb(const char *val,
 {
 	bool nval;
 
-	if (!val || strtobool(val, &nval))
+	if (!val || kstrtobool(val, &nval))
 		return -EINVAL;
 
 	if (mxlogger_forced_to_host ^ nval) {

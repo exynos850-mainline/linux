@@ -20,7 +20,6 @@
 #include "scsc_log_collector_proc.h"
 #include "scsc_log_collector_mmap.h"
 
-MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 
 #define SCSC_NUM_CHUNKS_SUPPORTED	13
 
@@ -67,7 +66,7 @@ static int sable_collection_off_set_param_cb(const char *val,
 {
 	bool nval;
 
-	if (!val || strtobool(val, &nval))
+	if (!val || kstrtobool(val, &nval))
 		return -EINVAL;
 
 	if (sable_collection_off ^ nval) {
@@ -193,7 +192,7 @@ static bool scsc_is_chunk_supported(u8 type)
 	return false;
 }
 
-static int scsc_log_collector_compare(void *priv, struct list_head *A, struct list_head *B)
+static int scsc_log_collector_compare(void *priv, const struct list_head *A, const struct list_head *B)
 {
 	struct scsc_log_client *a = list_entry(A, typeof(*a), list);
 	struct scsc_log_client *b = list_entry(B, typeof(*b), list);

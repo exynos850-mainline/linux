@@ -11,9 +11,19 @@
 #include <linux/delay.h>
 #include <linux/version.h>
 #include <linux/kmod.h>
+#include <linux/namei.h>
 #include <linux/notifier.h>
 #ifdef CONFIG_ARCH_EXYNOS
-#include <linux/soc/samsung/exynos-soc.h>
+/*
+ * The downstream chipid driver exposes SoC identification through a global
+ * exynos_soc_info; upstream has no equivalent for Exynos850 yet.  Provide the
+ * revision the WLBT firmware expects to find in its configuration.
+ */
+static struct {
+	u32 revision;
+} exynos_soc_info = {
+	.revision = 0,
+};
 #endif
 #include "scsc_mx_impl.h"
 #include "miframman.h"
@@ -1377,7 +1387,7 @@ static int mxman_start(struct mxman *mxman)
 	if (mxman_check_reset_failed(mif)) {
 		struct timespec64 tval = ns_to_timespec64(reset_failed_time);
 
-		SCSC_TAG_ERR(MXMAN, "previous reset failed at [%6lld.%06lld], ignoring\n", tval.tv_sec, tval.tv_usec);
+		SCSC_TAG_ERR(MXMAN, "previous reset failed at [%6lld.%06lld], ignoring\n", tval.tv_sec, tval.tv_nsec / NSEC_PER_USEC);
 		return -EIO;
 	}
 
@@ -2520,7 +2530,7 @@ static void mxman_stop(struct mxman *mxman)
 	if (mxman_check_reset_failed(mif)) {
 		struct timespec64 tval = ns_to_timespec64(reset_failed_time);
 
-		SCSC_TAG_ERR(MXMAN, "previous reset failed at [%6lld.%06lld], ignoring\n", tval.tv_sec, tval.tv_usec);
+		SCSC_TAG_ERR(MXMAN, "previous reset failed at [%6lld.%06lld], ignoring\n", tval.tv_sec, tval.tv_nsec / NSEC_PER_USEC);
 		return;
 	}
 

@@ -492,7 +492,7 @@ static int __init mx_mmap_init(void)
 	if (ret)
 		goto error;
 
-	mx_mmap.class_mx_mmap = class_create(THIS_MODULE, DEVICE_NAME);
+	mx_mmap.class_mx_mmap = class_create(DEVICE_NAME);
 	if (IS_ERR(mx_mmap.class_mx_mmap)) {
 		ret = PTR_ERR(mx_mmap.class_mx_mmap);
 		goto error_class;

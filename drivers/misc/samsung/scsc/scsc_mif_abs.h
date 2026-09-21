@@ -10,8 +10,40 @@
 #include <linux/version.h>
 
 #ifdef CONFIG_SCSC_QOS
-#include <soc/samsung/exynos_pm_qos.h>
-#include <linux/cpufreq.h>
+#include <linux/types.h>
+/*
+ * Upstream has no global bus (MIF/INT) or CPU cluster frequency QoS
+ * classes that a driver can request directly.  Keep the request handles
+ * so the QoS table parsing and accounting stay in place, but note that
+ * the constraints cannot be applied until proper devfreq/cpufreq
+ * integration exists for this platform.
+ */
+struct exynos_pm_qos_request {
+	unsigned int	value;
+	bool		active;
+};
+
+static inline int scsc_pm_qos_add_request(struct exynos_pm_qos_request *req, unsigned int value)
+{
+	req->value = value;
+	req->active = true;
+
+	return 0;
+}
+
+static inline int scsc_pm_qos_update_request(struct exynos_pm_qos_request *req, unsigned int value)
+{
+	req->value = value;
+
+	return 0;
+}
+
+static inline int scsc_pm_qos_remove_request(struct exynos_pm_qos_request *req)
+{
+	req->active = false;
+
+	return 0;
+}
 #endif
 #include <linux/types.h>
 #include <scsc/scsc_mifram.h>
@@ -47,8 +79,8 @@ enum scsc_mif_abs_bank_type {
 struct scsc_mifqos_request {
 	struct exynos_pm_qos_request pm_qos_req_mif;
 	struct exynos_pm_qos_request pm_qos_req_int;
-	struct freq_qos_request pm_qos_req_cl0;
-	struct freq_qos_request pm_qos_req_cl1;
+	struct exynos_pm_qos_request pm_qos_req_cl0;
+	struct exynos_pm_qos_request pm_qos_req_cl1;
 	struct cpufreq_policy* cpu_cluster0_policy;
 	struct cpufreq_policy* cpu_cluster1_policy;
 #ifdef CONFIG_SOC_S5E9815

@@ -373,8 +373,7 @@ void mxlog_init(struct mxlog *mxlog, struct scsc_mx *mx, char *fw_build_id)
 				 * NULL-terminate it just in case we fetched
 				 * never-ending garbage.
 				 */
-				strncpy(found, mxlog->logstrings->data,
-					FW_BUILD_ID_SZ - 1);
+				strscpy(found, mxlog->logstrings->data, FW_BUILD_ID_SZ);
 				SCSC_TAG_WARNING(MX_FW,
 						"--> Log-strings VERSION MISMATCH !!!\n");
 				SCSC_TAG_WARNING(MX_FW,

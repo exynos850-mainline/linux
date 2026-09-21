@@ -214,7 +214,7 @@ int build_header(char *buf, int blen, struct scsc_ring_record *r,
 	tval = ns_to_timespec64(r->nsec);
 	written = scnprintf(buf, blen,
 			    "<%d>[%6lld.%06lld] [c%d] [%c] [%s] :: %s",
-			    r->lev, tval.tv_sec, tval.tv_usec,
+			    r->lev, tval.tv_sec, tval.tv_nsec / NSEC_PER_USEC,
 			    r->core, (char)r->ctx, tagstr[r->tag],
 			    (trail) ? : "");
 	return written;
@@ -592,7 +592,7 @@ static inline size_t mark_out_of_sync(char *tbuf, size_t tsz,
 	/* We should write something even if truncated ... */
 	written = scnprintf(tbuf, tsz,
 			    "<7>[%6lld.%06lld] [c%d] [P] [OOS] :: [[[ OUT OF SYNC -- RESYNC'ED BYTES %d ]]]\n",
-			    tval.tv_sec, tval.tv_usec, smp_processor_id(),
+			    tval.tv_sec, tval.tv_nsec / NSEC_PER_USEC, smp_processor_id(),
 			    resynced_bytes);
 	return written;
 }
@@ -744,7 +744,7 @@ struct scsc_ring_buffer *scsc_ring_get_snapshot(const struct scsc_ring_buffer *r
 		snap_rb->wraps = rb->wraps;
 		/* this is related to reads so must be re-init */
 		snap_rb->oos = 0;
-		strncpy(snap_rb->name, snap_name, RNAME_SZ - 1);
+		strscpy(snap_rb->name, snap_name, RNAME_SZ);
 		/* Link the copies */
 		snap_rb->buf = snap_buf;
 		snap_rb->spare = snap_rb->buf + snap_rb->bsz;
@@ -809,7 +809,7 @@ struct scsc_ring_buffer __init *alloc_ring_buffer(size_t bsz, size_t ssz,
 	rb->oos = 0;
 	rb->spare = rb->buf + rb->bsz;
 	memset(rb->name, 0x00, RNAME_SZ);
-	strncpy(rb->name, name, RNAME_SZ - 1);
+	strscpy(rb->name, name, RNAME_SZ);
 	raw_spin_lock_init(&rb->lock);
 	init_waitqueue_head(&rb->wq);
 
