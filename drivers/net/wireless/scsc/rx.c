@@ -2043,8 +2043,8 @@ void slsi_rx_roamed_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 		 * If bss pointer is given in roam_info, cfg80211 bss
 		 * data base goes bad and results in random panic.
 		 */
-		roam_info.channel = ndev_vif->sta.sta_bss->channel;
-		roam_info.bssid = peer->address;
+		roam_info.links[0].channel = ndev_vif->sta.sta_bss->channel;
+		roam_info.links[0].bssid = peer->address;
 		roam_info.req_ie = assoc_ie;
 		roam_info.req_ie_len = assoc_ie_len;
 		roam_info.resp_ie = assoc_rsp_ie;
@@ -2953,8 +2953,8 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 			 * If bss pointer is given in roam_info, cfg80211 bss
 			 * data base goes bad and results in random panic.
 			 */
-			roam_info.channel = ndev_vif->sta.sta_bss->channel;
-			roam_info.bssid = ndev_vif->sta.sta_bss->bssid;
+			roam_info.links[0].channel = ndev_vif->sta.sta_bss->channel;
+			roam_info.links[0].bssid = ndev_vif->sta.sta_bss->bssid;
 			roam_info.req_ie = assoc_ie;
 			roam_info.req_ie_len = assoc_ie_len;
 			roam_info.resp_ie = assoc_rsp_ie;
@@ -3860,7 +3860,7 @@ ba_check_done:
 			return;
 		}
 #endif
-		is_dropped = (NET_RX_DROP == netif_rx_ni(skb));
+		is_dropped = (NET_RX_DROP == netif_rx(skb));
 		if (log_str_buffer[0])
 			SLSI_INFO(sdev, "%s %s\n", (is_dropped ? "Dropped" : "Received"), log_str_buffer);
 		if (log_skb) {

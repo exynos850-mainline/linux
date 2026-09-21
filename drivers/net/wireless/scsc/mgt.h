@@ -541,7 +541,7 @@ void slsi_peer_reset_stats(struct slsi_dev *sdev, struct net_device *dev, struct
 int slsi_peer_remove(struct slsi_dev *sdev, struct net_device *dev, struct slsi_peer *peer);
 int slsi_ps_port_control(struct slsi_dev *sdev, struct net_device *dev, struct slsi_peer *peer, enum slsi_sta_conn_state s);
 int slsi_del_station(struct wiphy *wiphy, struct wireless_dev *wdev,
-struct station_del_parameters *del_params);
+		     struct station_del_parameters *del_params);
 int slsi_sta_ieee80211_mode(struct net_device *dev, u16 current_bss_channel_frequency);
 int slsi_vif_activated(struct slsi_dev *sdev, struct net_device *dev);
 void slsi_vif_deactivated(struct slsi_dev *sdev, struct net_device *dev);

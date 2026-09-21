@@ -4559,7 +4559,7 @@ static int slsi_start_logging(struct wiphy *wiphy, struct wireless_dev *wdev, co
 
 		switch (type) {
 		case SLSI_ENHANCED_LOGGING_ATTRIBUTE_RING_NAME:
-			strncpy(ring_name, nla_data(attr), MIN(sizeof(ring_name) - 1, nla_len(attr)));
+			strscpy(ring_name, nla_data(attr), MIN(sizeof(ring_name), (size_t)nla_len(attr) + 1));
 			break;
 		case SLSI_ENHANCED_LOGGING_ATTRIBUTE_VERBOSE_LEVEL:
 			if (slsi_util_nla_get_u32(attr, &verbose_level)) {
@@ -4992,7 +4992,7 @@ static int slsi_get_ring_data(struct wiphy *wiphy, struct wireless_dev *wdev, co
 		type = nla_type(attr);
 		switch (type) {
 		case SLSI_ENHANCED_LOGGING_ATTRIBUTE_RING_NAME:
-			strncpy(ring_name, nla_data(attr), MIN(sizeof(ring_name) - 1, nla_len(attr)));
+			strscpy(ring_name, nla_data(attr), MIN(sizeof(ring_name), (size_t)nla_len(attr) + 1));
 			break;
 		default:
 			SLSI_ERR(sdev, "Unknown type: %d\n", type);

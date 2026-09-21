@@ -551,7 +551,7 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 							netif_receive_skb(duplicate_skb);
 #else
-							netif_rx_ni(duplicate_skb);
+							netif_rx(duplicate_skb);
 #endif
 						}
 					}
@@ -625,7 +625,7 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 #endif
 		drop_proto = rx_skb->protocol;
 		if (ctx_napi) {
-			if (GRO_DROP == napi_gro_receive(&sdev->hip4_inst.hip_priv->napi, rx_skb))
+			if (GRO_CONSUMED == napi_gro_receive(&sdev->hip4_inst.hip_priv->napi, rx_skb))
 				SLSI_NET_WARN(dev, "Packet is dropped. Protocol=%hx\n", ntohs(drop_proto));
 		} else {
 			if (NET_RX_DROP == netif_receive_skb(rx_skb))
@@ -635,7 +635,7 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 		netif_receive_skb(rx_skb);
 #endif
 #else /* #ifdef CONFIG_SCSC_WLAN_RX_NAPI */
-		netif_rx_ni(rx_skb);
+		netif_rx(rx_skb);
 #endif
 		slsi_wake_lock_timeout(&sdev->wlan_wl_ma, msecs_to_jiffies(SLSI_RX_WAKELOCK_TIME));
 	}
@@ -684,7 +684,7 @@ static void slsi_rx_data_ind(struct slsi_dev *sdev, struct net_device *dev, stru
 		skb->dev = dev;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->pkt_type = PACKET_OTHERHOST;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		return;
 	}
 

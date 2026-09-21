@@ -100,7 +100,7 @@ int slsi_sdio_func_drv_register(void)
 		return -ENOMEM;
 	}
 
-	test_dev_class = class_create(THIS_MODULE, SLSI_TESTDRV_NAME);
+	test_dev_class = class_create(SLSI_TESTDRV_NAME);
 	if (IS_ERR(test_dev_class))
 		return -EAGAIN;
 

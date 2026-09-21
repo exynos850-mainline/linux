@@ -35,7 +35,7 @@ int slsi_procfs_open_file_generic(struct inode *inode, struct file *file);
 	static const struct proc_ops slsi_procfs_ ## name ## _fops = {               \
 		.proc_open = slsi_procfs_ ## name ## _open,                                      \
 		.proc_read = seq_read,                                                           \
-		.proc_llseek = seq_lseek,                                                        \
+		.proc_lseek = seq_lseek,                                                        \
 		.proc_release = single_release,                                                  \
 	}
 
@@ -54,7 +54,7 @@ int slsi_procfs_open_file_generic(struct inode *inode, struct file *file);
 	static const struct proc_ops slsi_procfs_ ## name ## _fops = { \
 		.proc_read = slsi_procfs_ ## name ## _read,                        \
 		.proc_open = slsi_procfs_open_file_generic,                        \
-		.proc_llseek = generic_file_llseek                                 \
+		.proc_lseek = generic_file_llseek                                 \
 	}
 
 #define SLSI_PROCFS_WRITE_FILE_OPS(name)                                       \
@@ -62,7 +62,7 @@ int slsi_procfs_open_file_generic(struct inode *inode, struct file *file);
 	static const struct proc_ops slsi_procfs_ ## name ## _fops = { \
 		.proc_write = slsi_procfs_ ## name ## _write,                        \
 		.proc_open = slsi_procfs_open_file_generic,                        \
-		.proc_llseek = generic_file_llseek                                 \
+		.proc_lseek = generic_file_llseek                                 \
 	}
 
 #define SLSI_PROCFS_RW_FILE_OPS(name)                                               \
@@ -72,7 +72,7 @@ int slsi_procfs_open_file_generic(struct inode *inode, struct file *file);
 		.proc_read = slsi_procfs_ ## name ## _read,                        \
 		.proc_write = slsi_procfs_ ## name ## _write,                      \
 		.proc_open = slsi_procfs_open_file_generic,                        \
-		.proc_llseek = generic_file_llseek                                 \
+		.proc_lseek = generic_file_llseek                                 \
 	}
 
 #define SLSI_PROCFS_ADD_FILE(_sdev, name, parent, mode)                    \

@@ -1184,7 +1184,7 @@ int slsi_udi_init(void)
 	}
 
 	/* Create a driver class */
-	class = class_create(THIS_MODULE, UDI_CLASS_NAME);
+	class = class_create(UDI_CLASS_NAME);
 	if (IS_ERR(class)) {
 		SLSI_ERR_NODEV("Failed to create driver udi class\n");
 		unregister_chrdev_region(major_number, SLSI_UDI_MINOR_NODES);

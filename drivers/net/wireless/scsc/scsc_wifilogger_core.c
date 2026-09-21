@@ -33,7 +33,7 @@ static void wlog_drain_worker(struct work_struct *work)
 
 static void drain_timer_callback(struct timer_list *t)
 {
-	struct scsc_wlog_ring *r = from_timer(r, t, drain_timer);
+	struct scsc_wlog_ring *r = container_of(t, struct scsc_wlog_ring, drain_timer);
 	SCSC_TAG_DBG4(WLOG, "TIMER DRAIN : %p\n", r);
 	/* we should kick the workqueue here...no sleep */
 	queue_work(r->drain_workq, &r->drain_work);

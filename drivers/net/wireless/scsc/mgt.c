@@ -8,9 +8,9 @@
 #include <linux/firmware.h>
 #include <scsc/kic/slsi_kic_lib.h>
 #include <linux/fs.h>
-#if defined(CONFIG_ARCH_EXYNOS) || defined(CONFIG_ARCH_EXYNOS9)
-#include <linux/soc/samsung/exynos-soc.h>
-#endif
+#include <linux/random.h>
+#include <linux/if_arp.h>
+#include <linux/if_arp.h>
 
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 #include <linux/if_ether.h>
@@ -71,14 +71,12 @@
 #endif
 #define SLSI_PSID_UNIFI_IGMP_OFFLOAD_ACTIVATED 2489
 
-
 /* Manually added: To remove after fapi update */
 #define FAPI_SCANMODE_LOW_LATENCY_2   0x0002
 #define FAPI_SCANMODE_LOW_LATENCY_3   0x0003
 
 #define SLSI_ANTENNA_NOT_SET (0xff)
 
-MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 
 static char *mib_file_t = "wlan_t.hcf";
 module_param(mib_file_t, charp, S_IRUGO | S_IWUSR);
@@ -526,12 +524,8 @@ mac_default:
 	mx140_file_release_conf(sdev->maxwell_core, e);
 
 	SLSI_ETHER_COPY(addr, SLSI_DEFAULT_HW_MAC_ADDR);
-#if defined(CONFIG_ARCH_EXYNOS) || defined(CONFIG_ARCH_EXYNOS9)
-	/* Randomise MAC address from the soc uid */
-	addr[3] = (exynos_soc_info.unique_id & 0xFF0000000000) >> 40;
-	addr[4] = (exynos_soc_info.unique_id & 0x00FF00000000) >> 32;
-	addr[5] = (exynos_soc_info.unique_id & 0x0000FF000000) >> 24;
-#endif
+/* Mainline has no Exynos chip-ID export; retain the vendor prefix and randomise its suffix. */
+	get_random_bytes(&addr[3], 3);
 	SLSI_DBG1(sdev, SLSI_INIT_DEINIT,
 		  "MAC addr file NOT found, using default MAC ADDR: %pM\n", addr);
 #else
@@ -547,9 +541,9 @@ static void write_wifi_version_info_file(struct slsi_dev *sdev)
 {
 #ifdef CONFIG_SCSC_WLBTD
 #if defined(SCSC_SEP_VERSION) && (SCSC_SEP_VERSION >= 9)
-	char *filepath = "/data/vendor/conn/.wifiver.info";
+	char *file_path = "/data/vendor/conn/.wifiver.info";
 #else
-	char *filepath = "/data/misc/conn/.wifiver.info";
+	char *file_path = "/data/misc/conn/.wifiver.info";
 #endif
 #endif
 	char buf[256];
@@ -596,29 +590,28 @@ static void write_wifi_version_info_file(struct slsi_dev *sdev)
  */
 #ifdef SCSC_SEP_VERSION
 #ifdef CONFIG_SCSC_WLBTD
-	wlbtd_write_file(filepath, buf);
+	wlbtd_write_file(file_path, buf);
 #endif
 
 	SLSI_INFO(sdev, "Succeed to write firmware/host information to .wifiver.info\n");
 #else
-	SLSI_UNUSED_PARAMETER(filepath);
+	SLSI_UNUSED_PARAMETER(file_path);
 #endif
 }
 
 static void write_m_test_chip_version_file(struct slsi_dev *sdev)
 {
 #ifdef CONFIG_SCSC_WLBTD
-	char *filepath = "/data/vendor/conn/.cid.info";
+	char *file_path = "/data/vendor/conn/.cid.info";
 	char buf[256];
 
 	snprintf(buf, sizeof(buf), "%s\n", SCSC_RELEASE_SOLUTION);
 
-	wlbtd_write_file(filepath, buf);
+	wlbtd_write_file(file_path, buf);
 
 	SLSI_WARN(sdev, "Wrote chip information to .cid.info\n");
 #endif
 }
-
 
 int slsi_start_monitor_mode(struct slsi_dev *sdev, struct net_device *dev)
 {
@@ -742,9 +735,9 @@ int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
 	u32 offset = 0;
 	struct file *fp = NULL;
 #if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 9
-	char *filepath = "/data/vendor/conn/.softap.info";
+	char *file_path = "/data/vendor/conn/.softap.info";
 #else
-	char *filepath = "/data/misc/conn/.softap.info";
+	char *file_path = "/data/misc/conn/.softap.info";
 #endif
 	char buf[512];
 #endif
@@ -923,12 +916,12 @@ int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
 
 #ifdef CONFIG_SCSC_WLAN_AP_INFO_FILE
 		/* writing .softap.info in /data/vendor/conn */
-		fp = filp_open(filepath, O_WRONLY | O_CREAT, 0644);
+		fp = filp_open(file_path, O_WRONLY | O_CREAT, 0644);
 
 		if (!fp)  {
-			SLSI_WARN(sdev, "%s doesn't exist\n", filepath);
+			SLSI_WARN(sdev, "%s doesn't exist\n", file_path);
 		} else if (IS_ERR(fp)) {
-			SLSI_WARN(sdev, "%s open returned error %d\n", filepath, IS_ERR(fp));
+			SLSI_WARN(sdev, "%s open returned error %d\n", file_path, IS_ERR(fp));
 		} else {
 			offset = snprintf(buf + offset, sizeof(buf), "#softap.info\n");
 			offset += snprintf(buf + offset, sizeof(buf), "DualBandConcurrency=%s\n", sdev->dualband_concurrency ? "yes" : "no");
@@ -941,7 +934,7 @@ int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
 			offset += snprintf(buf + offset, sizeof(buf), "HalFn_getValidChannels=yes\n");
 /* If WLBTD is being used which we will be doing for 5.4 kernel project we will use daemon for writing file */
 #ifdef CONFIG_SCSC_WLBTD
-		wlbtd_write_file(filepath, buf);
+		wlbtd_write_file(file_path, buf);
 #endif
 			if (fp)
 				filp_close(fp, NULL);
@@ -4831,7 +4824,6 @@ int slsi_p2p_init(struct slsi_dev *sdev, struct netdev_vif *ndev_vif)
 	ndev_vif->vif_type = FAPI_VIFTYPE_UNSYNCHRONISED;
 	ndev_vif->unsync.slsi_p2p_continuous_fullscan = false;
 
-
 	INIT_DELAYED_WORK(&ndev_vif->unsync.roc_expiry_work, slsi_p2p_roc_duration_expiry_work);
 	INIT_DELAYED_WORK(&ndev_vif->unsync.del_vif_work, slsi_p2p_unsync_vif_delete_work);
 	INIT_DELAYED_WORK(&ndev_vif->unsync.unset_channel_expiry_work, slsi_p2p_unset_channel_expiry_work);
@@ -5115,7 +5107,7 @@ int slsi_get_public_action_subtype(const struct ieee80211_mgmt *mgmt)
 	int subtype = SLSI_PA_INVALID;
 	/* Vendor specific Public Action (0x09), P2P OUI (0x50, 0x6f, 0x9a), P2P Subtype (0x09) */
 	u8 p2p_pa_frame[5] = { 0x09, 0x50, 0x6f, 0x9a, 0x09 };
-	u8 *action = (u8 *)&mgmt->u.action.u;
+	u8 *action = (u8 *)&mgmt->u.action;
 
 	if (memcmp(&action[0], p2p_pa_frame, 5) == 0) {
 		subtype = action[5];
@@ -5142,7 +5134,7 @@ int slsi_p2p_get_go_neg_rsp_status(struct net_device *dev, const struct ieee8021
 {
 	int status = -1;
 	u8 p2p_oui_type[4] = { 0x50, 0x6f, 0x9a, 0x09 };
-	u8 *action = (u8 *)&mgmt->u.action.u;
+	u8 *action = (u8 *)&mgmt->u.action;
 	u8 *vendor_ie = &action[7];             /* 1 (0x09), 4 (0x50, 0x6f, 0x9a, 0x09), 1 (0x01), 1 (Dialog Token) */
 	u8 ie_length, elem_idx;
 	u16 attr_length;
@@ -5276,10 +5268,9 @@ u8 slsi_bss_connect_type_get(struct slsi_dev *sdev, const u8 *ie, size_t ie_len)
 }
 #endif
 
-
 void slsi_wlan_dump_public_action_subtype(struct slsi_dev *sdev, struct ieee80211_mgmt *mgmt, bool tx)
 {
-	u8 action_code = ((u8 *)&mgmt->u.action.u)[0];
+	u8 action_code = ((u8 *)&mgmt->u.action)[0];
 	u8 action_category = mgmt->u.action.category;
 	char *tx_rx_string = "Received";
 	char wnm_action_fields[28][35] = { "Event Request", "Event Report", "Diagnostic Request",

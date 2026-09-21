@@ -878,7 +878,7 @@ void hip4_sampler_create(struct slsi_dev *sdev, struct scsc_mx *mx)
 		if (ret)
 			goto error;
 
-		hip4_sampler.class_hip4_sampler = class_create(THIS_MODULE, DEVICE_NAME);
+		hip4_sampler.class_hip4_sampler = class_create(DEVICE_NAME);
 		if (IS_ERR(hip4_sampler.class_hip4_sampler)) {
 			SLSI_ERR_NODEV("hip4_sampler class creation failed\n");
 			ret = PTR_ERR(hip4_sampler.class_hip4_sampler);

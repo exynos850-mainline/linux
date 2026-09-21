@@ -1226,10 +1226,10 @@ void cac_rx_wmm_action(struct slsi_dev *sdev, struct net_device *netdev, struct 
 	if ((sdev == NULL) || (data == NULL) || (netdev == NULL) || (len == 0))
 		return;
 
-	if (mgmt->u.action.u.wme_action.action_code == WMM_ACTION_CODE_ADDTS_RESP) {
+	if (mgmt->u.action.action_code == WMM_ACTION_CODE_ADDTS_RESP) {
 		addts = (struct action_addts_rsp *)&mgmt->u.action;
-		cac_process_addts_rsp(sdev, netdev, addts, mgmt->u.action.u.wme_action.variable, len - sizeof(*addts) + 1);
-	} else if (mgmt->u.action.u.wme_action.action_code == WMM_ACTION_CODE_DELTS) {
+		cac_process_addts_rsp(sdev, netdev, addts, mgmt->u.action.wme_action.variable, len - sizeof(*addts) + 1);
+	} else if (mgmt->u.action.action_code == WMM_ACTION_CODE_DELTS) {
 		cac_process_delts_req(sdev, netdev, (struct action_delts_req *)&mgmt->u.action);
 	}
 }

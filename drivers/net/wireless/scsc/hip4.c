@@ -300,7 +300,7 @@ static int hip4_proc_history_open(struct inode *inode, struct file *file)
 static const struct proc_ops hip4_procfs_history_fops = {
 	.proc_open    = hip4_proc_history_open,
 	.proc_read    = seq_read,
-	.proc_llseek  = seq_lseek,
+	.proc_lseek  = seq_lseek,
 	.proc_release = single_release,
 };
 
@@ -441,7 +441,7 @@ static int hip4_proc_open(struct inode *inode, struct file *file)
 static const struct proc_ops hip4_procfs_stats_fops = {
 	.proc_open    = hip4_proc_open,
 	.proc_read    = seq_read,
-	.proc_llseek  = seq_lseek,
+	.proc_lseek  = seq_lseek,
 	.proc_release = single_release,
 };
 
@@ -499,7 +499,7 @@ static const struct proc_ops hip4_procfs_jitter_fops = {
 	.proc_open    = hip4_proc_jitter_open,
 	.proc_write   = hip4_proc_jitter_clear,
 	.proc_read    = seq_read,
-	.proc_llseek  = seq_lseek,
+	.proc_lseek  = seq_lseek,
 	.proc_release = single_release,
 };
 #endif
@@ -893,7 +893,7 @@ static int hip4_q_add_signal(struct slsi_hip4 *hip, enum hip4_hip_q_conf conf, s
 
 static void hip4_watchdog(struct timer_list *t)
 {
-	struct hip4_priv        *priv = from_timer(priv, t, watchdog);
+	struct hip4_priv        *priv = container_of(t, struct hip4_priv, watchdog);
 	struct slsi_hip4        *hip = priv->hip;
 	struct slsi_dev         *sdev = container_of(hip, struct slsi_dev, hip4_inst);
 	struct scsc_service     *service;
@@ -2382,7 +2382,7 @@ int hip4_init(struct slsi_hip4 *hip)
 		rcu_read_unlock();
 		return -EINVAL;
 	}
-	netif_napi_add(dev, &hip->hip_priv->napi, hip4_napi_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(dev, &hip->hip_priv->napi, hip4_napi_poll);
 	rcu_read_unlock();
 #else
 	/* TOHOST Handler allocator */

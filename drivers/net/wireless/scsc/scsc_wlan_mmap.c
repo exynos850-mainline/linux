@@ -121,7 +121,7 @@ int scsc_wlan_mmap_create(void)
 	}
 
 	/* Create a class : appears at /sys/class */
-	scsc_wlan_mmap_class = class_create(THIS_MODULE, "scsc_wlan_mmap_class");
+	scsc_wlan_mmap_class = class_create("scsc_wlan_mmap_class");
 	if (IS_ERR(scsc_wlan_mmap_class)) {
 		ret = PTR_ERR(scsc_wlan_mmap_class);
 		goto error_class;

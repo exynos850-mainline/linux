@@ -161,9 +161,9 @@ int slsi_mlme_set(struct slsi_dev *sdev, struct net_device *dev, u8 *req, int re
 int slsi_mlme_get(struct slsi_dev *sdev, struct net_device *dev, u8 *req, int req_len,
 		  u8 *resp, int resp_buf_len, int *resp_len);
 
-int slsi_mlme_add_vif(struct slsi_dev *sdev, struct net_device *dev, u8 *interface_address, u8 *device_address);
+int slsi_mlme_add_vif(struct slsi_dev *sdev, struct net_device *dev, const u8 *interface_address, const u8 *device_address);
 int slsi_mlme_del_vif(struct slsi_dev *sdev, struct net_device *dev);
-int slsi_mlme_add_detect_vif(struct slsi_dev *sdev, struct net_device *dev, u8 *interface_address, u8 *device_address);
+int slsi_mlme_add_detect_vif(struct slsi_dev *sdev, struct net_device *dev, const u8 *interface_address, const u8 *device_address);
 int slsi_mlme_del_detect_vif(struct slsi_dev *sdev, struct net_device *dev);
 #if defined(CONFIG_SLSI_WLAN_STA_FWD_BEACON) && (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
 int slsi_mlme_set_forward_beacon(struct slsi_dev *sdev, struct net_device *dev, int action);
@@ -200,7 +200,7 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 			     u16                                ies_len);
 
 int slsi_mlme_del_scan(struct slsi_dev *sdev, struct net_device *dev, u16 scan_id, bool scan_timed_out);
-int slsi_mlme_start(struct slsi_dev *sdev, struct net_device *dev, u8 *bssid, struct cfg80211_ap_settings *settings, const u8 *wpa_ie_pos, const u8 *wmm_ie_pos, bool append_vht_ies);
+int slsi_mlme_start(struct slsi_dev *sdev, struct net_device *dev, const u8 *bssid, struct cfg80211_ap_settings *settings, const u8 *wpa_ie_pos, const u8 *wmm_ie_pos, bool append_vht_ies);
 int slsi_mlme_connect(struct slsi_dev *sdev, struct net_device *dev, struct cfg80211_connect_params *sme, struct ieee80211_channel *channel, const u8 *bssid);
 int slsi_mlme_set_key(struct slsi_dev *sdev, struct net_device *dev, u16 key_id, u16 key_type, const u8 *address, struct key_params *key);
 int slsi_mlme_get_key(struct slsi_dev *sdev, struct net_device *dev, u16 key_id, u16 key_type, u8 *seq, int *seq_len);

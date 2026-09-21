@@ -310,7 +310,7 @@ static bool CsrWifiMibConvertTextAppend(const char *mibText, struct slsi_mib_dat
 					SLSI_ERR_NODEV("Memory allocation failed!\n", line);
 					return false;
 				}
-				(void)strncpy(line, lineStart, strSize);
+				memcpy(line, lineStart, strSize);
 				line[strSize] = '\0';
 				if (!CsrWifiMibConvertTextParseLine(line, mibDataSet, mibDataGet)) {
 					SLSI_ERR_NODEV("CsrWifiMibConvertTextParseLine() Failed for line '%s'", line);

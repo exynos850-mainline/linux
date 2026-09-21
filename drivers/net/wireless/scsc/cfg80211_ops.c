@@ -150,11 +150,12 @@ exit:
 }
 
 int slsi_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-int link_id, u8 key_index, bool pairwise, const u8 *mac_addr,
-struct key_params *params)
+		 int link_id, u8 key_index, bool pairwise, const u8 *mac_addr,
+		 struct key_params *params)
 {
-struct net_device *dev = wdev->netdev;
-SLSI_UNUSED_PARAMETER(link_id);
+	struct net_device *dev = wdev->netdev;
+	SLSI_UNUSED_PARAMETER(link_id);
+	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_peer  *peer = NULL;
 	int               r = 0;
@@ -287,8 +288,8 @@ exit:
 int slsi_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 int link_id, u8 key_index, bool pairwise, const u8 *mac_addr)
 {
-	SLSI_UNUSED_PARAMETER(link_id);
-struct net_device *dev = wdev->netdev;
+	SLSI_UNUSED_PARAMETER(link_id);
+	struct net_device *dev = wdev->netdev;
 	SLSI_UNUSED_PARAMETER(key_index);
 	SLSI_UNUSED_PARAMETER(pairwise);
 	SLSI_UNUSED_PARAMETER(mac_addr);
@@ -367,12 +368,13 @@ int slsi_channel_switch(struct wiphy *wiphy, struct net_device *dev, struct cfg8
 }
 
 int slsi_get_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-int link_id, u8 key_index, bool pairwise, const u8 *mac_addr,
-void *cookie,
-void (*callback)(void *cookie, struct key_params *))
+		 int link_id, u8 key_index, bool pairwise, const u8 *mac_addr,
+		 void *cookie,
+		 void (*callback)(void *cookie, struct key_params *))
 {
-struct net_device *dev = wdev->netdev;
-SLSI_UNUSED_PARAMETER(link_id);
+	struct net_device *dev = wdev->netdev;
+	SLSI_UNUSED_PARAMETER(link_id);
+	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct key_params params;
 
@@ -1470,9 +1472,9 @@ exit:
 }
 
 int slsi_set_default_key(struct wiphy *wiphy, struct net_device *dev,
-int link_id, u8 key_index, bool unicast, bool multicast)
+		 int link_id, u8 key_index, bool unicast, bool multicast)
 {
-SLSI_UNUSED_PARAMETER(link_id);
+	SLSI_UNUSED_PARAMETER(link_id);
 	SLSI_UNUSED_PARAMETER(dev);
 	SLSI_UNUSED_PARAMETER(key_index);
 	SLSI_UNUSED_PARAMETER(unicast);
@@ -1486,14 +1488,15 @@ int slsi_config_default_mgmt_key(struct wiphy      *wiphy,
 				 int               link_id,
 				 u8                key_index)
 {
-	SLSI_UNUSED_PARAMETER(wdev);
-	SLSI_UNUSED_PARAMETER(link_id);
+	SLSI_UNUSED_PARAMETER(wdev);
+	SLSI_UNUSED_PARAMETER(link_id);
 
 	return 0;
 }
 
-int slsi_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+int slsi_set_wiphy_params(struct wiphy *wiphy, int link_id, u32 changed)
 {
+	SLSI_UNUSED_PARAMETER(link_id);
 	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
 	int             r = 0;
 
@@ -1520,8 +1523,9 @@ int slsi_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 }
 
 int slsi_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
-		      enum nl80211_tx_power_setting type, int mbm)
+		      int radio_idx, enum nl80211_tx_power_setting type, int mbm)
 {
+	SLSI_UNUSED_PARAMETER(radio_idx);
 	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
 	int             r = 0;
 
@@ -1538,8 +1542,9 @@ int slsi_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 int slsi_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 		      int radio_idx, unsigned int link_id, int *dbm)
 {
-	SLSI_UNUSED_PARAMETER(radio_idx);
-	SLSI_UNUSED_PARAMETER(link_id);
+	SLSI_UNUSED_PARAMETER(radio_idx);
+	SLSI_UNUSED_PARAMETER(link_id);
+	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
 	int             r = 0;
 
 	SLSI_UNUSED_PARAMETER(wdev);
@@ -1554,7 +1559,8 @@ int slsi_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 int slsi_del_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 		     struct station_del_parameters *del_params)
 {
-	struct net_device *dev = wdev->netdev;
+	struct net_device *dev = wdev->netdev;
+	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_peer  *peer;
 	int               r = 0;
@@ -1631,9 +1637,10 @@ exit:
 	return r;
 }
 
-int slsi_get_station(struct wiphy *wiphy, struct net_device *dev,
+int slsi_get_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 		     const u8 *mac, struct station_info *sinfo)
 {
+	struct net_device *dev = wdev->netdev;
 	struct slsi_dev   *sdev = SDEV_FROM_WIPHY(wiphy);
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_peer  *peer;
@@ -1794,23 +1801,14 @@ exit:
 	return r;
 }
 
-int slsi_set_monitor_channel(struct wiphy *wiphy, struct cfg80211_chan_def *chandef)
+int slsi_set_monitor_channel(struct wiphy *wiphy, struct net_device *dev, struct cfg80211_chan_def *chandef)
 {
 	struct slsi_dev *sdev = SDEV_FROM_WIPHY(wiphy);
-	struct net_device *dev;
 	struct netdev_vif *ndev_vif;
 
 	SLSI_DBG1(sdev, SLSI_CFG80211, "channel (freq:%u)\n", chandef->chan->center_freq);
 
-	rcu_read_lock();
-	dev = slsi_get_netdev_rcu(sdev, SLSI_NET_INDEX_WLAN);
-	if (!dev) {
-		SLSI_ERR(sdev, "netdev No longer exists\n");
-		rcu_read_unlock();
-		return -EINVAL;
-	}
 	ndev_vif = netdev_priv(dev);
-	rcu_read_unlock();
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
@@ -1970,13 +1968,13 @@ int slsi_flush_pmksa(struct wiphy *wiphy, struct net_device *dev)
 }
 
 int slsi_remain_on_channel(struct wiphy             *wiphy,
-struct wireless_dev      *wdev,
-struct ieee80211_channel *chan,
-unsigned int             duration,
-u64                      *cookie,
-const u8                 *rx_addr)
+		 struct wireless_dev      *wdev,
+		 struct ieee80211_channel *chan,
+		 unsigned int             duration,
+		 u64                      *cookie,
+		 const u8                 *rx_addr)
 {
-SLSI_UNUSED_PARAMETER(rx_addr);
+	SLSI_UNUSED_PARAMETER(rx_addr);
 	struct net_device *dev = wdev->netdev;
 	struct slsi_dev   *sdev = SDEV_FROM_WIPHY(wiphy);
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -2775,7 +2773,7 @@ int slsi_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 
 int slsi_stop_ap(struct wiphy *wiphy, struct net_device *dev, unsigned int link_id)
 {
-SLSI_UNUSED_PARAMETER(link_id);
+	SLSI_UNUSED_PARAMETER(link_id);
 	slsi_reset_throughput_stats(dev);
 
 	return 0;

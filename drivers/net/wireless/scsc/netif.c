@@ -360,18 +360,17 @@ static int slsi_net_open(struct net_device *dev)
 	}
 	ndev_vif->acs = false;
 	memset(dev_addr_zero_check, 0, ETH_ALEN);
-	if ((!memcmp(dev->dev_addr, dev_addr_zero_check, ETH_ALEN)) ||
-	    (SLSI_IS_VIF_INDEX_MHS_DUALSTA(sdev, ndev_vif) && (!memcmp(dev->dev_addr, SLSI_DEFAULT_HW_MAC_ADDR, ETH_ALEN)))) {
+	if (!memcmp(dev->dev_addr, dev_addr_zero_check, ETH_ALEN)) {
 #if defined(CONFIG_SCSC_WLAN_WIFI_SHARING) || defined(CONFIG_SCSC_WLAN_DUAL_STATION)
 		if (SLSI_IS_VIF_INDEX_MHS_DUALSTA(sdev, ndev_vif)) {
 			SLSI_ETHER_COPY(mhs_or_dual_sta_mac, sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN]);
 			mhs_or_dual_sta_mac[2] ^= 0x80;
-			SLSI_ETHER_COPY(dev->dev_addr, mhs_or_dual_sta_mac);
+			eth_hw_addr_set(dev, mhs_or_dual_sta_mac);
 		} else {
-			SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[ndev_vif->ifnum]);
+			eth_hw_addr_set(dev, sdev->netdev_addresses[ndev_vif->ifnum]);
 		}
 #else
-		SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[ndev_vif->ifnum]);
+		eth_hw_addr_set(dev, sdev->netdev_addresses[ndev_vif->ifnum]);
 #endif
 	}
 #if defined(CONFIG_SCSC_WLAN_WIFI_SHARING) || defined(CONFIG_SCSC_WLAN_DUAL_STATION)
@@ -1244,7 +1243,7 @@ static int  slsi_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = (struct sockaddr *)addr;
 
 	SLSI_NET_DBG1(dev, SLSI_NETDEV, "%pM\n", sa->sa_data);
-	SLSI_ETHER_COPY(dev->dev_addr, sa->sa_data);
+	eth_hw_addr_set(dev, sa->sa_data);
 	sdev->mac_changed = true;
 	ndev_vif->ipaddress = 0;
 
@@ -1312,66 +1311,14 @@ static void slsi_if_setup(struct net_device *dev)
 
 static void slsi_netif_rps_map_clear(struct net_device *dev)
 {
-	struct rps_map *map;
-
-	map = rcu_dereference_protected(dev->_rx->rps_map, 1);
-	if (map) {
-		RCU_INIT_POINTER(dev->_rx->rps_map, NULL);
-		kfree_rcu(map, rcu);
-		SLSI_NET_INFO(dev, "clear rps_cpus map\n");
-	}
+	SLSI_UNUSED_PARAMETER(dev);
 }
 
 static int slsi_netif_rps_map_set(struct net_device *dev, char *buf, size_t len)
 {
-	struct rps_map *old_map, *map;
-	cpumask_var_t mask;
-	int err, cpu, i;
-	static DEFINE_SPINLOCK(rps_map_lock);
-
-	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
-
-	err = bitmap_parse(buf, len, cpumask_bits(mask), nr_cpumask_bits);
-	if (err) {
-		free_cpumask_var(mask);
-		SLSI_NET_WARN(dev, "CPU bitmap parse failed\n");
-		return err;
-	}
-
-	map = kzalloc(max_t(unsigned int, RPS_MAP_SIZE(cpumask_weight(mask)), L1_CACHE_BYTES), GFP_KERNEL);
-	if (!map) {
-		free_cpumask_var(mask);
-		SLSI_NET_WARN(dev, "CPU mask alloc failed\n");
-		return -ENOMEM;
-	}
-
-	i = 0;
-	for_each_cpu_and(cpu, mask, cpu_online_mask)
-		map->cpus[i++] = cpu;
-
-	if (i) {
-		map->len = i;
-	} else {
-		kfree(map);
-		map = NULL;
-	}
-
-	spin_lock(&rps_map_lock);
-	old_map = rcu_dereference_protected(dev->_rx->rps_map, lockdep_is_held(&rps_map_lock));
-	rcu_assign_pointer(dev->_rx->rps_map, map);
-	spin_unlock(&rps_map_lock);
-
-	if (map)
-		static_branch_inc(&rps_needed);
-	if (old_map)
-		static_branch_dec(&rps_needed);
-
-	if (old_map)
-		kfree_rcu(old_map, rcu);
-
-	free_cpumask_var(mask);
-	SLSI_NET_INFO(dev, "rps_cpus map set(%s)\n", buf);
+	SLSI_UNUSED_PARAMETER(dev);
+	SLSI_UNUSED_PARAMETER(buf);
+	/* RPS maps are private to the networking core in current kernels. */
 	return len;
 }
 
@@ -1711,11 +1658,11 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 
 #if defined(CONFIG_SCSC_WLAN_WIFI_SHARING) || defined(CONFIG_SCSC_WLAN_DUAL_STATION)
 	if (strcmp(name, CONFIG_SCSC_AP_INTERFACE_NAME) == 0)
-		SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN]);
+		eth_hw_addr_set(dev, sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN]);
 	else
-		SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[ifnum]);
+		eth_hw_addr_set(dev, sdev->netdev_addresses[ifnum]);
 #else
-	SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[ifnum]);
+	eth_hw_addr_set(dev, sdev->netdev_addresses[ifnum]);
 #endif
 	SLSI_DBG1(sdev, SLSI_NETDEV, "Add:%pM\n", dev->dev_addr);
 	rcu_assign_pointer(sdev->netdev[ifnum], dev);
@@ -2072,7 +2019,7 @@ static int slsi_netif_tcp_ack_suppression_stop(struct net_device *dev)
 
 static void slsi_netif_tcp_ack_suppression_timeout(struct timer_list *t)
 {
-	struct slsi_tcp_ack_s *tcp_ack = from_timer(tcp_ack, t, timer);
+	struct slsi_tcp_ack_s *tcp_ack = container_of(t, struct slsi_tcp_ack_s, timer);
 	struct sk_buff *skb;
 	struct netdev_vif *ndev_vif;
 	struct slsi_dev   *sdev;

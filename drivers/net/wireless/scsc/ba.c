@@ -314,7 +314,7 @@ static int ba_consume_frame_or_get_buffer_index(struct net_device *dev, struct s
 
 static void slsi_ba_aging_timeout_handler(struct timer_list *t)
 {
-	struct slsi_ba_session_rx *ba_session_rx = from_timer(ba_session_rx, t, ba_age_timer);
+	struct slsi_ba_session_rx *ba_session_rx = container_of(t, struct slsi_ba_session_rx, ba_age_timer);
 	u8                        i, j;
 	u8                        gap = 1;
 	u16                       temp_sn;

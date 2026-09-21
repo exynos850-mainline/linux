@@ -73,7 +73,7 @@ static inline void traffic_mon_invoke_client_callback(struct slsi_dev *sdev, u32
 
 static void traffic_mon_timer(struct timer_list *t)
 {
-	struct slsi_traffic_mon_clients *clients = from_timer(clients, t, timer);
+	struct slsi_traffic_mon_clients *clients = container_of(t, struct slsi_traffic_mon_clients, timer);
 	struct slsi_dev *sdev = container_of(clients, typeof(*sdev), traffic_mon_clients);
 	struct net_device *dev;
 	struct netdev_vif *ndev_vif;
@@ -167,7 +167,7 @@ inline void slsi_traffic_mon_event_tx(struct slsi_dev *sdev, struct net_device *
 
 void slsi_traffic_mon_override(struct slsi_dev *sdev)
 {
-	if (WARN_ON_ONCE(in_irq()))
+	if (WARN_ON_ONCE(in_hardirq()))
 		return;
 
 	spin_lock_bh(&sdev->traffic_mon_clients.lock);
