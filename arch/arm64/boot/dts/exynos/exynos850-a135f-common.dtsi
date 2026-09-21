@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "exynos850.dtsi"
+#include "exynos850-a135f-wifi.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -39,6 +40,11 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		wifibt_if: wifibt_if {
+			compatible = "exynos,wifibt_if";
+			size = <0xc00000>;
+		};			
 
 		ramoops@f0f10000 {
 			compatible = "ramoops";
