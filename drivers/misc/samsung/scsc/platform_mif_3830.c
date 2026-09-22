@@ -1950,8 +1950,8 @@ struct scsc_mif_abs *platform_mif_create(struct platform_device *pdev)
 	platform->smapper = NULL;
 #endif
 
-	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "platform->mem_start 0x%x platform->mem_size 0x%x\n",
-			(u32)platform->mem_start, (u32)platform->mem_size);
+	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "platform->mem_start 0x%lx platform->mem_size 0x%zx\n",
+			(unsigned long)platform->mem_start, platform->mem_size);
 	if (platform->mem_start == 0)
 		SCSC_TAG_WARNING_DEV(PLAT_MIF, platform->dev, "platform->mem_start is 0");
 

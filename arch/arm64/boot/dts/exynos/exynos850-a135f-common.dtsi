@@ -96,8 +96,9 @@
 		/* Shared WLAN/Bluetooth firmware memory, allocated by the DT core. */
 		wifibt_if: wifibt-if {
 			compatible = "exynos,wifibt_if";
-			size = <0x0 0xc00000>;
+			size = <0xc00000>;
 			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x80000000 0x80000000>;
 		};
 
 		ramoops@f0f10000 {
