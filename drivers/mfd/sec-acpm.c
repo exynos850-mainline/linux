@@ -3,7 +3,7 @@
  * Copyright 2020 Google Inc
  * Copyright 2025 Linaro Ltd.
  *
- * Samsung S2MPG1x ACPM driver
+ * Samsung S2MPG1x/S2MPU12 ACPM driver
  */
 
 #include <linux/array_size.h>
@@ -14,6 +14,7 @@
 #include <linux/mfd/samsung/rtc.h>
 #include <linux/mfd/samsung/s2mpg10.h>
 #include <linux/mfd/samsung/s2mpg11.h>
+#include <linux/mfd/samsung/s2mpu12.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -35,6 +36,8 @@ struct sec_pmic_acpm_platform_data {
 	const struct regmap_config *regmap_cfg_pmic;
 	const struct regmap_config *regmap_cfg_rtc;
 	const struct regmap_config *regmap_cfg_meter;
+
+	int (*hw_init)(struct device *dev, struct regmap *regmap_common);
 };
 
 static const struct regmap_range s2mpg10_common_registers[] = {
@@ -353,6 +356,112 @@ static const struct regmap_access_table s2mpg11_meter_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(s2mpg11_meter_ro_registers),
 };
 
+static const struct regmap_range s2mpu12_rtc_registers[] = {
+	regmap_reg_range(S2MPU12_RTC_CTRL, S2MPU12_RTC_OSCCTRL),
+};
+
+static const struct regmap_access_table s2mpu12_rtc_rd_table = {
+	.yes_ranges = s2mpu12_rtc_registers,
+	.n_yes_ranges = ARRAY_SIZE(s2mpu12_rtc_registers),
+};
+
+static const struct regmap_config s2mpu12_regmap_config_rtc = {
+	.name = "rtc",
+	.reg_bits = ACPM_ADDR_BITS,
+	.val_bits = 8,
+	.max_register = S2MPU12_RTC_OSCCTRL,
+	.rd_table = &s2mpu12_rtc_rd_table,
+	.cache_type = REGCACHE_NONE,
+};
+
+static const struct regmap_range s2mpu12_common_registers[] = {
+	regmap_reg_range(S2MPU12_COMMON_VGPIO0, S2MPU12_COMMON_IRQM), /* VGPIO0-3, CHIPID, IRQM */
+};
+
+static const struct regmap_range s2mpu12_common_ro_registers[] = {
+	regmap_reg_range(S2MPU12_COMMON_CHIPID, S2MPU12_COMMON_CHIPID),
+};
+
+static const struct regmap_access_table s2mpu12_common_wr_table = {
+	.yes_ranges = s2mpu12_common_registers,
+	.n_yes_ranges = ARRAY_SIZE(s2mpu12_common_registers),
+	.no_ranges = s2mpu12_common_ro_registers,
+	.n_no_ranges = ARRAY_SIZE(s2mpu12_common_ro_registers),
+};
+
+static const struct regmap_access_table s2mpu12_common_rd_table = {
+	.yes_ranges = s2mpu12_common_registers,
+	.n_yes_ranges = ARRAY_SIZE(s2mpu12_common_registers),
+};
+
+static const struct regmap_config s2mpu12_regmap_config_common = {
+	.name = "common",
+	.reg_bits = ACPM_ADDR_BITS,
+	.val_bits = 8,
+	.max_register = S2MPU12_COMMON_IRQM,
+	.wr_table = &s2mpu12_common_wr_table,
+	.rd_table = &s2mpu12_common_rd_table,
+	.cache_type = REGCACHE_NONE,
+};
+
+static const struct regmap_range s2mpu12_pmic_registers[] = {
+	regmap_reg_range(S2MPU12_PMIC_INT1, S2MPU12_PMIC_ON_SEQ_SEL27), /* 0x00-0x7b */
+	regmap_reg_range(S2MPU12_PMIC_BUCK_OI_EN, S2MPU12_PMIC_DCXO_CTRL3), /* 0x89-0x90 */
+};
+
+static const struct regmap_range s2mpu12_pmic_ro_registers[] = {
+	regmap_reg_range(S2MPU12_PMIC_INT1, S2MPU12_PMIC_INT6),      /* INTx */
+	regmap_reg_range(S2MPU12_PMIC_STATUS1, S2MPU12_PMIC_OFFSRC), /* STATUSx PWRONSRC OFFSRC */
+};
+
+static const struct regmap_range s2mpu12_pmic_precious_registers[] = {
+	regmap_reg_range(S2MPU12_PMIC_INT1, S2MPU12_PMIC_INT6),      /* read-to-clear */
+};
+
+static const struct regmap_access_table s2mpu12_pmic_wr_table = {
+	.yes_ranges = s2mpu12_pmic_registers,
+	.n_yes_ranges = ARRAY_SIZE(s2mpu12_pmic_registers),
+	.no_ranges = s2mpu12_pmic_ro_registers,
+	.n_no_ranges = ARRAY_SIZE(s2mpu12_pmic_ro_registers),
+};
+
+static const struct regmap_access_table s2mpu12_pmic_rd_table = {
+	.yes_ranges = s2mpu12_pmic_registers,
+	.n_yes_ranges = ARRAY_SIZE(s2mpu12_pmic_registers),
+};
+
+static const struct regmap_access_table s2mpu12_pmic_precious_table = {
+	.yes_ranges = s2mpu12_pmic_precious_registers,
+	.n_yes_ranges = ARRAY_SIZE(s2mpu12_pmic_precious_registers),
+};
+
+static const struct regmap_config s2mpu12_regmap_config_pmic = {
+	.name = "pmic",
+	.reg_bits = ACPM_ADDR_BITS,
+	.val_bits = 8,
+	.max_register = S2MPU12_PMIC_DCXO_CTRL3,
+	.wr_table = &s2mpu12_pmic_wr_table,
+	.rd_table = &s2mpu12_pmic_rd_table,
+	.precious_table = &s2mpu12_pmic_precious_table,
+	.cache_type = REGCACHE_NONE,
+};
+
+static int s2mpu12_acpm_hw_init(struct device *dev, struct regmap *regmap_common)
+{
+	unsigned int rev;
+	int ret;
+
+	ret = regmap_read(regmap_common, S2MPU12_COMMON_CHIPID, &rev);
+	if (ret)
+		return dev_err_probe(dev, -ENODEV,
+				     "device not found on this channel\n");
+
+	dev_info(dev, "S2MPU12 found: rev.0x%02x\n", rev);
+
+	return regmap_update_bits(regmap_common, S2MPU12_COMMON_IRQM,
+				  S2MPU12_IRQSRC_PMIC, 0);
+}
+
 static const struct regmap_config s2mpg11_regmap_config_meter = {
 	.name = "meter",
 	.reg_bits = ACPM_ADDR_BITS,
@@ -508,6 +617,12 @@ static int sec_pmic_acpm_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap_common))
 		return PTR_ERR(regmap_common);
 
+	if (pdata->hw_init) {
+		ret = pdata->hw_init(dev, regmap_common);
+		if (ret)
+			return ret;
+	}
+
 	regmap_pmic = sec_pmic_acpm_regmap_init(dev, shared_ctx, SEC_PMIC_ACPM_ACCESSTYPE_PMIC,
 						pdata->regmap_cfg_pmic, false);
 	if (IS_ERR(regmap_pmic))
@@ -520,10 +635,13 @@ static int sec_pmic_acpm_probe(struct platform_device *pdev)
 			return PTR_ERR(regmap);
 	}
 
-	regmap = sec_pmic_acpm_regmap_init(dev, shared_ctx, SEC_PMIC_ACPM_ACCESSTYPE_METER,
-					   pdata->regmap_cfg_meter, true);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	if (pdata->regmap_cfg_meter) {
+		regmap = sec_pmic_acpm_regmap_init(dev, shared_ctx,
+						   SEC_PMIC_ACPM_ACCESSTYPE_METER,
+						   pdata->regmap_cfg_meter, true);
+		if (IS_ERR(regmap))
+			return PTR_ERR(regmap);
+	}
 
 	ret = sec_pmic_probe(dev, pdata->device_type, irq, regmap_pmic, NULL);
 	if (ret)
@@ -559,9 +677,20 @@ static const struct sec_pmic_acpm_platform_data s2mpg11_data = {
 	.regmap_cfg_meter = &s2mpg11_regmap_config_meter,
 };
 
+static const struct sec_pmic_acpm_platform_data s2mpu12_data = {
+	.device_type = S2MPU12X,
+	.acpm_chan_id = 2,
+	.speedy_channel = 0,
+	.regmap_cfg_common = &s2mpu12_regmap_config_common,
+	.regmap_cfg_pmic = &s2mpu12_regmap_config_pmic,
+	.regmap_cfg_rtc = &s2mpu12_regmap_config_rtc,
+	.hw_init = s2mpu12_acpm_hw_init,
+};
+
 static const struct of_device_id sec_pmic_acpm_of_match[] = {
 	{ .compatible = "samsung,s2mpg10-pmic", .data = &s2mpg10_data, },
 	{ .compatible = "samsung,s2mpg11-pmic", .data = &s2mpg11_data, },
+	{ .compatible = "samsung,s2mpu12-pmic", .data = &s2mpu12_data, },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sec_pmic_acpm_of_match);
