@@ -128,8 +128,8 @@ static const struct resource s2mpu12_rtc_resources[] = {
 
 static const struct mfd_cell s2mpu12_devs[] = {
         MFD_CELL_NAME("s2mpu12-regulator"),
+//	MFD_CELL_NAME("s2mpu12-power-keys"),
         MFD_CELL_RES("s2mpu12-rtc", s2mpu12_rtc_resources),
-        MFD_CELL_OF("s2mpu12-power-keys", NULL, NULL, 0, 0, "samsung,s2mpu12-keys"),
 };
 
 static void sec_pmic_dump_rev(struct sec_pmic_dev *sec_pmic)
