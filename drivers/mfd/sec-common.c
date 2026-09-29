@@ -122,6 +122,16 @@ static const struct mfd_cell s2mu005_devs[] = {
 	MFD_CELL_OF("s2mu005-rgb", NULL, NULL, 0, 0, "samsung,s2mu005-rgb"),
 };
 
+static const struct resource s2mpu12_rtc_resources[] = {
+        DEFINE_RES_IRQ_NAMED(S2MPU12_IRQ_RTCA0, "alarm"),
+};
+
+static const struct mfd_cell s2mpu12_devs[] = {
+        MFD_CELL_NAME("s2mpu12-regulator"),
+        MFD_CELL_RES("s2mpu12-rtc", s2mpu12_rtc_resources),
+        MFD_CELL_OF("s2mpu12-power-keys", NULL, NULL, 0, 0, "samsung,s2mpu12-keys"),
+};
+
 static void sec_pmic_dump_rev(struct sec_pmic_dev *sec_pmic)
 {
 	unsigned int reg, mask, val;
@@ -129,7 +139,8 @@ static void sec_pmic_dump_rev(struct sec_pmic_dev *sec_pmic)
 	switch (sec_pmic->device_type) {
 	case S2MPG10:
 	case S2MPG11:
-		/* For s2mpg1x, the revision is in a different regmap */
+	case S2MPU12X:
+		/* For s2mpg1x and s2mpu12, the revision is in a different regmap */
 		return;
 	case S2MU005:
 		reg = S2MU005_REG_ID;
@@ -254,6 +265,10 @@ int sec_pmic_probe(struct device *dev, int device_type, unsigned int irq,
 	case S2MPG11:
 		sec_devs = s2mpg11_devs;
 		num_sec_devs = ARRAY_SIZE(s2mpg11_devs);
+		break;
+	case S2MPU12X:
+		sec_devs = s2mpu12_devs;
+		num_sec_devs = ARRAY_SIZE(s2mpu12_devs);
 		break;
 	case S2MPS11X:
 		sec_devs = s2mps11_devs;
