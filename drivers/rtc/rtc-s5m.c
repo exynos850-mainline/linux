@@ -17,6 +17,7 @@
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/rtc.h>
 #include <linux/mfd/samsung/s2mps14.h>
+#include <linux/mfd/samsung/s2mpu12.h>
 
 /*
  * Maximum number of retries for checking changes in UDR field
@@ -54,6 +55,7 @@ enum {
  * =================================================
  * S5M8767    | UDR + TIME |           | UDR
  * S2MPG10    | WUDR       | RUDR      | AUDR
+ * S2MPU12    | WUDR       | RUDR      | AUDR
  * S2MPS11/14 | WUDR       | RUDR      | WUDR + RUDR
  * S2MPS13    | WUDR       | RUDR      | WUDR + AUDR
  * S2MPS15    | WUDR       | RUDR      | AUDR
@@ -114,6 +116,20 @@ static const struct s5m_rtc_reg_config s2mpg10_rtc_regs = {
 	.write_alarm_udr_mask	= S2MPS15_RTC_AUDR_MASK,
 };
 
+/* Register map for S2MPU12 */
+static const struct s5m_rtc_reg_config s2mpu12_rtc_regs = {
+	.regs_count		= 7,
+	.time			= S2MPU12_RTC_SEC,
+	.ctrl			= S2MPU12_RTC_CTRL,
+	.alarm0			= S2MPU12_RTC_A0SEC,
+	.alarm1			= S2MPU12_RTC_A1SEC,
+	.udr_update		= S2MPU12_RTC_UPDATE,
+	.autoclear_udr_mask	= S2MPS15_RTC_WUDR_MASK | S2MPS15_RTC_AUDR_MASK,
+	.read_time_udr_mask	= S2MPS_RTC_RUDR_MASK,
+	.write_time_udr_mask	= S2MPS15_RTC_WUDR_MASK,
+	.write_alarm_udr_mask	= S2MPS15_RTC_AUDR_MASK,
+};
+
 /* Register map for S2MPS13 */
 static const struct s5m_rtc_reg_config s2mps13_rtc_regs = {
 	.regs_count		= 7,
@@ -168,6 +184,8 @@ struct s5m_rtc_info {
 	enum sec_device_type device_type;
 	int rtc_24hr_mode;
 	const struct s5m_rtc_reg_config	*regs;
+	bool wtsr_en;
+	bool smpl_en;
 };
 
 static const struct regmap_config s5m_rtc_regmap_config = {
@@ -253,6 +271,11 @@ static int s5m_check_pending_alarm_interrupt(struct s5m_rtc_info *info,
 		ret = regmap_read(info->regmap, S5M_RTC_STATUS, &val);
 		val &= S5M_ALARM0_STATUS;
 		break;
+	case S2MPU12X:
+		ret = regmap_read(info->s5m87xx->regmap_pmic,
+				  S2MPU12_PMIC_STATUS2, &val);
+		val &= S2MPU12_STATUS2_RTCA0E;
+		break;
 	case S2MPG10:
 	case S2MPS15X:
 	case S2MPS14X:
@@ -302,6 +325,7 @@ static int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 		udr_mask |= S5M_RTC_TIME_EN_MASK;
 		break;
 	case S2MPG10:
+	case S2MPU12X:
 	case S2MPS15X:
 	case S2MPS14X:
 	case S2MPS13X:
@@ -344,6 +368,8 @@ static int s5m_rtc_read_time(struct device *dev, struct rtc_time *tm)
 				ret);
 			return ret;
 		}
+		if (info->device_type == S2MPU12X)
+			usleep_range(1000, 1500);
 	}
 	ret = regmap_bulk_read(info->regmap, info->regs->time, data,
 			info->regs->regs_count);
@@ -353,6 +379,7 @@ static int s5m_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	switch (info->device_type) {
 	case S5M8767X:
 	case S2MPG10:
+	case S2MPU12X:
 	case S2MPS15X:
 	case S2MPS14X:
 	case S2MPS13X:
@@ -377,6 +404,7 @@ static int s5m_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	switch (info->device_type) {
 	case S5M8767X:
 	case S2MPG10:
+	case S2MPU12X:
 	case S2MPS15X:
 	case S2MPS14X:
 	case S2MPS13X:
@@ -407,6 +435,14 @@ static int s5m_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 data[RTC_MAX_NUM_TIME_REGS];
 	int ret, i;
 
+	if (info->device_type == S2MPU12X) {
+		ret = regmap_set_bits(info->regmap, info->regs->udr_update,
+				      info->regs->read_time_udr_mask);
+		if (ret)
+			return ret;
+		usleep_range(1000, 1500);
+	}
+
 	ret = regmap_bulk_read(info->regmap, info->regs->alarm0, data,
 			info->regs->regs_count);
 	if (ret < 0)
@@ -415,6 +451,7 @@ static int s5m_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	switch (info->device_type) {
 	case S5M8767X:
 	case S2MPG10:
+	case S2MPU12X:
 	case S2MPS15X:
 	case S2MPS14X:
 	case S2MPS13X:
@@ -454,6 +491,7 @@ static int s5m_rtc_stop_alarm(struct s5m_rtc_info *info)
 	switch (info->device_type) {
 	case S5M8767X:
 	case S2MPG10:
+	case S2MPU12X:
 	case S2MPS15X:
 	case S2MPS14X:
 	case S2MPS13X:
@@ -493,6 +531,7 @@ static int s5m_rtc_start_alarm(struct s5m_rtc_info *info)
 	switch (info->device_type) {
 	case S5M8767X:
 	case S2MPG10:
+	case S2MPU12X:
 	case S2MPS15X:
 	case S2MPS14X:
 	case S2MPS13X:
@@ -531,6 +570,7 @@ static int s5m_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	switch (info->device_type) {
 	case S5M8767X:
 	case S2MPG10:
+	case S2MPU12X:
 	case S2MPS15X:
 	case S2MPS14X:
 	case S2MPS13X:
@@ -590,6 +630,46 @@ static const struct rtc_class_ops s5m_rtc_ops = {
 	.alarm_irq_enable = s5m_rtc_alarm_irq_enable,
 };
 
+static int s5m_rtc_init_reg_s2mpu12(struct s5m_rtc_info *info)
+{
+	unsigned int ctrl, capsel;
+	int ret;
+
+	ret = regmap_clear_bits(info->regmap, info->regs->udr_update,
+				info->regs->autoclear_udr_mask |
+				info->regs->read_time_udr_mask |
+				S2MPU12_RTC_FREEZE_MASK);
+	if (ret)
+		return ret;
+	ret = regmap_set_bits(info->regmap, info->regs->udr_update,
+			      info->regs->read_time_udr_mask);
+	if (ret)
+		return ret;
+	usleep_range(1000, 1500);
+
+	ret = regmap_read(info->regmap, info->regs->ctrl, &ctrl);
+	if (ret)
+		return ret;
+	ret = regmap_read(info->regmap, S2MPU12_RTC_CAPSEL, &capsel);
+	if (ret)
+		return ret;
+
+	if ((ctrl & MODEL24_MASK) &&
+	    (capsel & S2MPU12_RTC_INIT_MARK) == S2MPU12_RTC_INIT_MARK)
+		return 0;
+
+	ret = regmap_write(info->regmap, info->regs->ctrl, MODEL24_MASK);
+	if (ret)
+		return ret;
+
+	ret = s5m8767_rtc_set_alarm_reg(info);
+	if (ret)
+		return ret;
+
+	return regmap_set_bits(info->regmap, S2MPU12_RTC_CAPSEL,
+			       S2MPU12_RTC_INIT_MARK);
+}
+
 static int s5m8767_rtc_init_reg(struct s5m_rtc_info *info)
 {
 	u8 data[2];
@@ -628,7 +708,9 @@ static int s5m8767_rtc_init_reg(struct s5m_rtc_info *info)
 		 */
 		ret = s5m8767_rtc_set_alarm_reg(info);
 		break;
-
+	case S2MPU12X:
+		ret = s5m_rtc_init_reg_s2mpu12(info);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -640,6 +722,93 @@ static int s5m8767_rtc_init_reg(struct s5m_rtc_info *info)
 				     __func__);
 
 	return ret;
+}
+
+static int s2mpu12_of_enabled(struct device_node *np, const char *name)
+{
+	const char *s;
+
+	if (of_property_read_string(np, name, &s))
+		return -ENOENT;
+	return !strcmp(s, "enabled") || !strcmp(s, "okay");
+}
+
+static void s2mpu12_osc_opt(struct s5m_rtc_info *info, const char *prop,
+			    unsigned int reg, unsigned int mask)
+{
+	u32 v;
+	int ret;
+
+	if (of_property_read_u32(info->dev->parent->of_node, prop, &v))
+		return;
+	ret = regmap_update_bits(info->regmap, reg, mask,
+				 (v << __ffs(mask)) & mask);
+	if (ret)
+		dev_err(info->dev, "failed to set %s: %d\n", prop, ret);
+}
+
+static void s5m_rtc_s2mpu12_setup(struct s5m_rtc_info *info)
+{
+	struct device_node *np = info->dev->parent->of_node;
+	u32 wtsr_t = 0, smpl_t = 0, check_jigon = 0;
+	unsigned int status1, val;
+	int wtsr, smpl, ret;
+
+	if (!np)
+		return;
+
+	wtsr = s2mpu12_of_enabled(np, "wtsr_en");
+	smpl = s2mpu12_of_enabled(np, "smpl_en");
+	if (wtsr >= 0 || smpl >= 0) {	/* leave HW alone if DT says nothing */
+		wtsr = max(wtsr, 0);
+		smpl = max(smpl, 0);
+		of_property_read_u32(np, "wtsr_timer_val", &wtsr_t);
+		of_property_read_u32(np, "smpl_timer_val", &smpl_t);
+		of_property_read_u32(np, "check_jigon", &check_jigon);
+
+		if (check_jigon && smpl &&
+		    !regmap_read(info->s5m87xx->regmap_pmic,
+				 S2MPU12_PMIC_STATUS1, &status1) &&
+		    !(status1 & S2MPU12_STATUS1_JIGONB))
+			smpl = 0;
+
+		val = ((wtsr_t << S2MPU12_RTC_WTSRT_SHIFT) & S2MPU12_RTC_WTSRT_MASK) |
+		      ((smpl_t << S2MPU12_RTC_SMPLT_SHIFT) & S2MPU12_RTC_SMPLT_MASK);
+		if (wtsr)
+			val |= S2MPU12_RTC_WTSR_EN;
+		if (smpl)
+			val |= S2MPU12_RTC_SMPL_EN;
+
+		ret = regmap_write(info->regmap, S2MPU12_RTC_WTSR_SMPL, val);
+		if (ret) {
+			dev_err(info->dev, "failed to write WTSR/SMPL: %d\n", ret);
+		} else {
+			info->wtsr_en = wtsr;
+			info->smpl_en = smpl;
+			dev_info(info->dev, "WTSR: %s, SMPL: %s\n",
+				 wtsr ? "enable" : "disable",
+				 smpl ? "enable" : "disable");
+		}
+	}
+
+	s2mpu12_osc_opt(info, "osc-bias-up", S2MPU12_RTC_CAPSEL,
+			S2MPU12_RTC_OSC_BIAS_UP_MASK);
+	s2mpu12_osc_opt(info, "rtc_cap_sel", S2MPU12_RTC_CAPSEL,
+			S2MPU12_RTC_CAP_SEL_MASK);
+	s2mpu12_osc_opt(info, "rtc_osc_xin", S2MPU12_RTC_OSCCTRL,
+			S2MPU12_RTC_OSC_XIN_MASK);
+	s2mpu12_osc_opt(info, "rtc_osc_xout", S2MPU12_RTC_OSCCTRL,
+			S2MPU12_RTC_OSC_XOUT_MASK);
+}
+
+static void s5m_rtc_shutdown(struct platform_device *pdev)
+{
+	struct s5m_rtc_info *info = platform_get_drvdata(pdev);
+
+	/* disable wtsr / smpl on shutdown */
+	if (info->device_type == S2MPU12X && (info->wtsr_en || info->smpl_en))
+		regmap_clear_bits(info->regmap, S2MPU12_RTC_WTSR_SMPL,
+				  S2MPU12_RTC_WTSR_EN | S2MPU12_RTC_SMPL_EN);
 }
 
 static int s5m_rtc_restart_s2mpg10(struct sys_off_data *data)
@@ -714,6 +883,8 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 					     "Failed to allocate regmap\n");
 	} else if (device_type == S2MPG10) {
 		info->regs = &s2mpg10_rtc_regs;
+	} else if (device_type == S2MPU12X) {
+		info->regs = &s2mpu12_rtc_regs;
 	} else {
 		return dev_err_probe(&pdev->dev, -ENODEV,
 				     "Unsupported device type %d\n",
@@ -738,6 +909,9 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	ret = s5m8767_rtc_init_reg(info);
 	if (ret)
 		return ret;
+
+	if (device_type == S2MPU12X)
+		s5m_rtc_s2mpu12_setup(info);
 
 	info->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(info->rtc_dev))
@@ -809,6 +983,7 @@ static SIMPLE_DEV_PM_OPS(s5m_rtc_pm_ops, s5m_rtc_suspend, s5m_rtc_resume);
 static const struct platform_device_id s5m_rtc_id[] = {
 	{ .name = "s5m-rtc",     .driver_data = S5M8767X },
 	{ .name = "s2mpg10-rtc", .driver_data = S2MPG10 },
+	{ .name = "s2mpu12-rtc", .driver_data = S2MPU12X },
 	{ .name = "s2mps13-rtc", .driver_data = S2MPS13X },
 	{ .name = "s2mps14-rtc", .driver_data = S2MPS14X },
 	{ .name = "s2mps15-rtc", .driver_data = S2MPS15X },
