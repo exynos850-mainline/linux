@@ -38,6 +38,10 @@ static const struct mfd_cell s2dos05_devs[] = {
 	MFD_CELL_NAME("s2dos05-regulator"),
 };
 
+static const struct mfd_cell s2mpb03_devs[] = {
+        MFD_CELL_NAME("s2mpb03-regulator"),
+};
+
 static const struct resource s2mpg10_rtc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(S2MPG10_IRQ_RTCA0, "alarm"),
 };
@@ -239,6 +243,10 @@ int sec_pmic_probe(struct device *dev, int device_type, unsigned int irq,
 		sec_devs = s2mpa01_devs;
 		num_sec_devs = ARRAY_SIZE(s2mpa01_devs);
 		break;
+        case S2MPB03:
+                sec_devs = s2mpb03_devs;
+                num_sec_devs = ARRAY_SIZE(s2mpb03_devs);
+                break;
 	case S2MPG10:
 		sec_devs = s2mpg10_devs;
 		num_sec_devs = ARRAY_SIZE(s2mpg10_devs);

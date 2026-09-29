@@ -93,6 +93,11 @@ static const struct regmap_config s2mpa01_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static const struct regmap_config s2mpb03_regmap_config = {
+        .reg_bits = 8,
+        .val_bits = 8,
+};
+
 static const struct regmap_config s2mps11_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -195,6 +200,11 @@ static const struct sec_pmic_i2c_platform_data s2mpa01_data = {
 	.device_type = S2MPA01,
 };
 
+static const struct sec_pmic_i2c_platform_data s2mpb03_data = {
+        .regmap_cfg = &s2mpb03_regmap_config,
+        .device_type = S2MPB03,
+};
+
 static const struct sec_pmic_i2c_platform_data s2mps11_data = {
 	.regmap_cfg = &s2mps11_regmap_config,
 	.device_type = S2MPS11X,
@@ -237,6 +247,7 @@ static const struct sec_pmic_i2c_platform_data s5m8767_data = {
 
 static const struct of_device_id sec_pmic_i2c_of_match[] = {
 	{ .compatible = "samsung,s2dos05", .data = &s2dos05_data, },
+	{ .compatible = "samsung,s2mpb03", .data = &s2mpb03_data, },
 	{ .compatible = "samsung,s2mpa01-pmic", .data = &s2mpa01_data, },
 	{ .compatible = "samsung,s2mps11-pmic", .data = &s2mps11_data, },
 	{ .compatible = "samsung,s2mps13-pmic", .data = &s2mps13_data, },
