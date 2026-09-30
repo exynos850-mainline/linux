@@ -104,7 +104,7 @@ enum s2mpg10_rtc_reg {
 };
 
 enum s2mpu12_rtc_reg {
-	S2MPU12_RTC_CTRL
+	S2MPU12_RTC_CTRL,
 	S2MPU12_RTC_UPDATE,
 	S2MPU12_RTC_SMPL,
 	S2MPU12_RTC_WTSR,
