@@ -25,6 +25,7 @@
 #include <linux/mfd/samsung/s2mps15.h>
 #include <linux/mfd/samsung/s2mpu02.h>
 #include <linux/mfd/samsung/s2mpu05.h>
+#include <linux/mfd/samsung/s2mpu12.h>
 
 enum {
 	S2MPG10_REGULATOR_OPS_STD,
@@ -1257,6 +1258,157 @@ static const struct s2mpg10_regulator_desc s2mpg11_regulators[] = {
 	s2mpg11_regulator_desc_ldo(15, "vinl3s", s2mpg11_ldo_vranges3)
 };
 
+static const struct regulator_ops s2mpu12_reg_ldo_ops = {
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+};
+
+static const struct regulator_ops s2mpu12_reg_buck_ops = {
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+};
+
+
+#define regulator_desc_s2mpu12_ldo(num, range) {	\
+	.name		= "LDO"#num,			\
+	.id		= S2MPU12_LDO##num,		\
+	.of_match	= of_match_ptr("LDO"#num),	\
+	.regulators_node = of_match_ptr("regulators"),	\
+	.ops		= &s2mpu12_reg_ldo_ops,		\
+	.type		= REGULATOR_VOLTAGE,		\
+	.owner		= THIS_MODULE,			\
+	.linear_ranges	= range,			\
+	.n_linear_ranges = ARRAY_SIZE(range),		\
+	.n_voltages	= S2MPU12_LDO_N_VOLTAGES,	\
+	.vsel_reg	= S2MPU12_PMIC_L1CTRL + num - 1,	\
+	.vsel_mask	= S2MPU12_LDO_VSEL_MASK,	\
+	.enable_reg	= S2MPU12_PMIC_L1CTRL + num - 1,	\
+	.enable_mask	= S2MPU12_ENABLE_MASK		\
+}
+
+#define regulator_desc_s2mpu12_buck(num, range) {			\
+	.name		= "BUCK"#num,					\
+	.id		= S2MPU12_BUCK##num,				\
+	.of_match	= of_match_ptr("BUCK"#num),			\
+	.regulators_node = of_match_ptr("regulators"),			\
+	.ops		= &s2mpu12_reg_buck_ops,			\
+	.type		= REGULATOR_VOLTAGE,				\
+	.owner		= THIS_MODULE,					\
+	.linear_ranges	= range,					\
+	.n_linear_ranges = ARRAY_SIZE(range),				\
+	.ramp_delay	= 12500,					\
+	.n_voltages	= S2MPU12_BUCK_N_VOLTAGES,			\
+	.vsel_reg	= S2MPU12_PMIC_B1CTRL + ((num - 1) * 2),	\
+	.vsel_mask	= S2MPU12_BUCK_VSEL_MASK,			\
+	.enable_reg	= S2MPU12_PMIC_B1CTRL + ((num - 1) * 2),	\
+	.enable_mask	= S2MPU12_ENABLE_MASK				\
+}
+
+/* LDO MIN1/STEP1 */
+/* voltage range for s2mpu12 LDO 6 */
+static const struct linear_range s2mpu12_ldo_voltage_ranges1[] = {
+	REGULATOR_LINEAR_RANGE(400000, 0x0, 0x3f, 12500),
+};
+
+/* LDO MIN2/STEP2 */
+/* voltage range for s2mpu12 LDO 1, 3, 5, 7, 12, 13, 17, 18, 19, 29 and 36 */
+static const struct linear_range s2mpu12_ldo_voltage_ranges2[] = {
+	REGULATOR_LINEAR_RANGE(700000, 0x0, 0x3f, 12500),
+};
+
+/* LDO MIN3/STEP3 */
+/* voltage range for s2mpu12 LDO 8 and 9 */
+static const struct linear_range s2mpu12_ldo_voltage_ranges3[] = {
+	REGULATOR_LINEAR_RANGE(300000, 0x0, 0x3f, 25000),
+};
+
+/* LDO MIN4/STEP4 */
+/* voltage range for s2mpu12 LDO 2, 4, 14, 20, 28, 30, 33 and 35 */
+static const struct linear_range s2mpu12_ldo_voltage_ranges4[] = {
+	REGULATOR_LINEAR_RANGE(700000, 0x0, 0x3f, 25000),
+};
+
+/* LDO MIN5/STEP5 */
+/* voltage range for s2mpu12 LDO 10, 11, 15, 16, 21, 22, 23, 24, 25, 26, 27, 31, 32 and 34 */
+static const struct linear_range s2mpu12_ldo_voltage_ranges5[] = {
+	REGULATOR_LINEAR_RANGE(1800000, 0x0, 0x3f, 25000),
+};
+
+/* BUCK MIN1/STEP1 */
+/* voltage range for s2mpu12 BUCK 1, 2 and 3 */
+static const struct linear_range s2mpu12_buck_voltage_ranges1[] = {
+	REGULATOR_LINEAR_RANGE(300000, 0x0, 0xff, 6250),
+};
+
+/* BUCK MIN2/STEP2 */
+/* voltage range for s2mpu12 BUCK 4 */
+static const struct linear_range s2mpu12_buck_voltage_ranges2[] = {
+	REGULATOR_LINEAR_RANGE(600000, 0x0, 0xff, 12500),
+};
+
+/* BUCK MIN3/STEP3 */
+/* voltage range for s2mpu12 BUCK 5 */
+static const struct linear_range s2mpu12_buck_voltage_ranges3[] = {
+	REGULATOR_LINEAR_RANGE(600000, 0x0, 0xff, 12500),
+};
+
+/* 36 LDOs 5 BUCKs */
+/* LDOs 11-23 and BUCK 3 is disabled so comment them out. */
+static const struct regulator_desc s2mpu12_regulators[] = {
+	regulator_desc_s2mpu12_ldo(1, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(2, s2mpu12_ldo_voltage_ranges4),
+        regulator_desc_s2mpu12_ldo(3, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(4, s2mpu12_ldo_voltage_ranges4),
+        regulator_desc_s2mpu12_ldo(5, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(6, s2mpu12_ldo_voltage_ranges1),
+        regulator_desc_s2mpu12_ldo(7, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(8, s2mpu12_ldo_voltage_ranges3),
+        regulator_desc_s2mpu12_ldo(9, s2mpu12_ldo_voltage_ranges3),
+        regulator_desc_s2mpu12_ldo(10, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(11, s2mpu12_ldo_voltage_ranges5),
+/*	regulator_desc_s2mpu12_ldo(12, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(13, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(14, s2mpu12_ldo_voltage_ranges4),
+        regulator_desc_s2mpu12_ldo(15, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(16, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(17, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(18, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(19, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(20, s2mpu12_ldo_voltage_ranges4),
+        regulator_desc_s2mpu12_ldo(21, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(22, s2mpu12_ldo_voltage_ranges5), */
+        regulator_desc_s2mpu12_ldo(23, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(24, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(25, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(26, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(27, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(28, s2mpu12_ldo_voltage_ranges4),
+        regulator_desc_s2mpu12_ldo(29, s2mpu12_ldo_voltage_ranges2),
+        regulator_desc_s2mpu12_ldo(30, s2mpu12_ldo_voltage_ranges4),
+        regulator_desc_s2mpu12_ldo(31, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(32, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(33, s2mpu12_ldo_voltage_ranges4),
+        regulator_desc_s2mpu12_ldo(34, s2mpu12_ldo_voltage_ranges5),
+        regulator_desc_s2mpu12_ldo(35, s2mpu12_ldo_voltage_ranges4),
+        regulator_desc_s2mpu12_ldo(36, s2mpu12_ldo_voltage_ranges2),
+	regulator_desc_s2mpu12_buck(1, s2mpu12_buck_voltage_ranges1),
+	regulator_desc_s2mpu12_buck(2, s2mpu12_buck_voltage_ranges1),
+//	regulator_desc_s2mpu12_buck(3, s2mpu12_buck_voltage_ranges1),
+	regulator_desc_s2mpu12_buck(4, s2mpu12_buck_voltage_ranges2),
+	regulator_desc_s2mpu12_buck(5, s2mpu12_buck_voltage_ranges3),
+};
+
 static const struct regulator_ops s2mps11_ldo_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
@@ -2217,6 +2369,11 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		regulators = s2mpu05_regulators;
 		BUILD_BUG_ON(ARRAY_SIZE(s2mpu05_regulators) > S2MPS_REGULATOR_MAX);
 		break;
+	case S2MPU12X:
+		rdev_num = ARRAY_SIZE(s2mpu12regulators);
+		regulators = s2mpu12_regulators;
+		BUILD_BUG_ON(ARRAY_SIZE(s2mpu12_regulators) > S2MPS_REGULATOR_MAX);
+		break;
 	default:
 		return dev_err_probe(&pdev->dev, -ENODEV,
 				     "Unsupported device type %d\n",
@@ -2274,6 +2431,7 @@ static const struct platform_device_id s2mps11_pmic_id[] = {
 	{ .name = "s2mps15-regulator", .driver_data = S2MPS15X },
 	{ .name = "s2mpu02-regulator", .driver_data = S2MPU02 },
 	{ .name = "s2mpu05-regulator", .driver_data = S2MPU05 },
+	{ .name = "s2mpu12-regulator", .driver_data = S2MPU12X },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, s2mps11_pmic_id);
