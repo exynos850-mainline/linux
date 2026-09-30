@@ -1307,7 +1307,7 @@ static const struct regulator_ops s2mpu12_reg_buck_ops = {
 	.owner		= THIS_MODULE,					\
 	.linear_ranges	= range,					\
 	.n_linear_ranges = ARRAY_SIZE(range),				\
-	.ramp_delay	= 12500,					\
+	.ramp_delay	= 6000,						\
 	.n_voltages	= S2MPU12_BUCK_N_VOLTAGES,			\
 	.vsel_reg	= S2MPU12_PMIC_B1CTRL + ((num - 1) * 2),	\
 	.vsel_mask	= S2MPU12_BUCK_VSEL_MASK,			\
@@ -2370,7 +2370,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		BUILD_BUG_ON(ARRAY_SIZE(s2mpu05_regulators) > S2MPS_REGULATOR_MAX);
 		break;
 	case S2MPU12X:
-		rdev_num = ARRAY_SIZE(s2mpu12regulators);
+		rdev_num = ARRAY_SIZE(s2mpu12_regulators);
 		regulators = s2mpu12_regulators;
 		BUILD_BUG_ON(ARRAY_SIZE(s2mpu12_regulators) > S2MPS_REGULATOR_MAX);
 		break;
