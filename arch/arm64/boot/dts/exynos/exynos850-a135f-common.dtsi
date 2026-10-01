@@ -10,6 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/usb/pd.h>
 
 / {
 	model = "Samsung Galaxy A13";
@@ -104,6 +105,39 @@
 
 &i2c_0 {
 	status = "okay";
+
+	et7303: typec-port@4e {
+		compatible = "etekmicro,et7303", "richtek,rt1711h";
+		reg = <0x4e>;
+		status = "okay";
+		interrupt-parent = <&gpa0>; 
+		interrupts = <6 IRQ_TYPE_NONE>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&typec_int>;
+
+		usb_con: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			source-pdos = <PDO_FIXED(5000, 500, PDO_FIXED_DUAL_ROLE | PDO_FIXED_DATA_SWAP)>;
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_DUAL_ROLE | PDO_FIXED_DATA_SWAP)
+				     PDO_FIXED(9000, 2000, 0)>;
+			op-sink-microwatt = <18000000>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					usb_con_hs: endpoint {
+						remote-endpoint = <&usbdrd_hs_ep>;
+					};
+				};
+			};
+		};
+	};
 
 	sy6970: charger@6a {
 		compatible = "silergy,sy6970";
@@ -458,7 +492,14 @@
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
-	chg_en_default {
+	typec_int: typec-int {
+		samsung,pins = "gpa0-6";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
+
+	chg_int_default: chg-int-default {
 		samsung,pins = "gpa2-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -474,7 +515,7 @@
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
-	chg_en_default {
+	chg_en_default: chg-en-default  {
 		samsung,pins = "gpg2-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -515,29 +556,36 @@
 
 &usbdrd {
         status = "okay";
-        /delete-property/ extcon;
-        /delete-property/ pinctrl-names;
-        /delete-property/ pinctrl-0;
-        vdd10-supply = <&reg_dummy>;
-        vdd33-supply = <&reg_dummy>;
+        vdd10-supply = <&vdd_ldo2>;
+        vdd33-supply = <&vdd_ldo11>;
 };
 
 &usbdrd_dwc3 {
         status = "okay";
-        dr_mode = "peripheral";
+        dr_mode = "otg";
+	usb-role-switch;
+
         maximum-speed = "high-speed";
-        /delete-property/ extcon;
         phys = <&usbdrd_phy 0>;
         phy-names = "usb2-phy";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			usbdrd_hs_ep: endpoint {
+				remote-endpoint = <&usb_con_hs>;
+			};
+		};
+	};
 };
 
 &usbdrd_phy {
         status = "okay";
-        /delete-property/ extcon;
-        /delete-property/ pinctrl-names;
-        /delete-property/ pinctrl-0;
-        vdd-supply = <&reg_dummy>;
-        vbus-supply = <&reg_dummy>;
+        vdd-supply = <&vdd_ldo1>;
+        vbus-supply = <&vdd_ldo11>;
 };
 
 &gpu {
