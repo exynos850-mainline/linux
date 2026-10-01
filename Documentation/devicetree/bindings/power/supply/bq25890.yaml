@@ -23,6 +23,7 @@ properties:
               - ti,bq25892
               - ti,bq25895
               - ti,bq25896
+              - silergy,sy6970
           - const: ti,bq25890
 
   reg:
