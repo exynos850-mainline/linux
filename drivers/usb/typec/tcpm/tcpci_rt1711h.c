@@ -377,6 +377,7 @@ static const struct rt1711h_chip_info rt1715 = {
 
 static const struct i2c_device_id rt1711h_id[] = {
 	{ .name = "et7304", .driver_data = (kernel_ulong_t)&rt1715 },
+	{ .name = "et7303", .driver_data = (kernel_ulong_t)&rt1711h },
 	{ .name = "rt1711h", .driver_data = (kernel_ulong_t)&rt1711h },
 	{ .name = "rt1715", .driver_data = (kernel_ulong_t)&rt1715 },
 	{ }
@@ -385,6 +386,7 @@ MODULE_DEVICE_TABLE(i2c, rt1711h_id);
 
 static const struct of_device_id rt1711h_of_match[] = {
 	{ .compatible = "etekmicro,et7304", .data = &rt1715 },
+	{ .compatible = "etekmicro,et7303", .data = &rt1711h },
 	{ .compatible = "richtek,rt1711h", .data = &rt1711h },
 	{ .compatible = "richtek,rt1715", .data = &rt1715 },
 	{}
