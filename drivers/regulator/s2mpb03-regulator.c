@@ -236,25 +236,25 @@ static const struct regulator_ops s2mpb03_ldo_ops = {
 
 static const struct regulator_desc regulators[S2MPB03_REGULATOR_MAX] = {
 	/* name, id, ops, min_uv, uV_step, vsel_reg, enable_reg */
-	LDO_DESC("ldo1", _LDO(1), &_ldo_ops(), _LDO(_MIN1),
+	LDO_DESC("s2mpb03-ldo1", _LDO(1), &_ldo_ops(), _LDO(_MIN1),
 		_LDO(_STEP2), _REG(_LDO1_CTRL),
 		_REG(_LDO1_CTRL), _TIME(_LDO)),
-	LDO_DESC("ldo2", _LDO(2), &_ldo_ops(), _LDO(_MIN1),
+	LDO_DESC("s2mpb03-ldo2", _LDO(2), &_ldo_ops(), _LDO(_MIN1),
 		_LDO(_STEP2), _REG(_LDO2_CTRL),
 		_REG(_LDO2_CTRL),  _TIME(_LDO)),
-	LDO_DESC("ldo3", _LDO(3), &_ldo_ops(), _LDO(_MIN1),
+	LDO_DESC("s2mpb03-ldo3", _LDO(3), &_ldo_ops(), _LDO(_MIN1),
 		_LDO(_STEP1), _REG(_LDO3_CTRL),
 		_REG(_LDO3_CTRL), _TIME(_LDO)),
-	LDO_DESC("ldo4", _LDO(4), &_ldo_ops(), _LDO(_MIN1),
+	LDO_DESC("s2mpb03-ldo4", _LDO(4), &_ldo_ops(), _LDO(_MIN1),
 		_LDO(_STEP2), _REG(_LDO4_CTRL),
 		_REG(_LDO4_CTRL), _TIME(_LDO)),
-	LDO_DESC("ldo5", _LDO(5), &_ldo_ops(), _LDO(_MIN2),
+	LDO_DESC("s2mpb03-ldo5", _LDO(5), &_ldo_ops(), _LDO(_MIN2),
 		_LDO(_STEP1), _REG(_LDO5_CTRL),
 		_REG(_LDO5_CTRL), _TIME(_LDO)),
-	LDO_DESC("ldo6", _LDO(6), &_ldo_ops(), _LDO(_MIN2),
+	LDO_DESC("s2mpb03-ldo6", _LDO(6), &_ldo_ops(), _LDO(_MIN2),
 		_LDO(_STEP1), _REG(_LDO6_CTRL),
 		_REG(_LDO6_CTRL), _TIME(_LDO)),
-	LDO_DESC("ldo7", _LDO(7), &_ldo_ops(), _LDO(_MIN2),
+	LDO_DESC("s2mpb03-ldo7", _LDO(7), &_ldo_ops(), _LDO(_MIN2),
 		_LDO(_STEP1), _REG(_LDO7_CTRL),
 		_REG(_LDO7_CTRL), _TIME(_LDO))
 };
