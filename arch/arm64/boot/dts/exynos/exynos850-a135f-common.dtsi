@@ -116,7 +116,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
 		system-power-controller;
+		wtsr_en = "enabled";
+		smpl_en = "enabled";
+		wtsr_timer_val = <3>;
+		smpl_timer_val = <0>;
+		check_jigon = <0>;
 		wakeup-source;
+
 
 		/* ldos 11-23 are disabled by samsung. disable them here too. */
 		regulators {
