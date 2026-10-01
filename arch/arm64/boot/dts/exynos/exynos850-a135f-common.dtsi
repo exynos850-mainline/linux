@@ -74,20 +74,6 @@
 		regulator-name = "dummy_reg";
 	};
 
-	reg_mali: regulator-1 {
-		compatible = "regulator-fixed";
-		regulator-name = "mali";
-		regulator-min-microvolt = <1150000>;
-		regulator-max-microvolt = <1150000>;
-	};
-
-        reg_lcd_vddi: regulator-2 {
-                compatible = "regulator-fixed";
-                regulator-name = "lcd_vddi";
-                regulator-min-microvolt = <1800000>;
-                regulator-max-microvolt = <1800000>;
-        };
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -511,7 +497,7 @@
 };
 
 &gpu {
-	mali-supply = <&reg_mali>;
+	mali-supply = <&vdd_buck2>;
 	status = "okay";
 };
 
@@ -539,6 +525,6 @@
 		interrupt-parent = <&gpa0>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 
-		vdd-supply = <&reg_lcd_vddi>;
+		vdd-supply = <&vdd_ldo28>;
 	};
 };
