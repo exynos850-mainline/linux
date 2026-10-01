@@ -102,6 +102,29 @@
 	};
 };
 
+&i2c_0 {
+	status = "okay";
+
+	sy6970: charger@6a {
+		compatible = "silergy,sy6970";
+		reg = <0x6a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&chg_int_default &chg_en_default>;
+		interrupt-parent = <&gpa2>;
+		interrupts = <5 IRQ_TYPE_NONE>;
+		ti,battery-regulation-voltage = <4380000>;
+		ti,charge-current = <448000>;
+		ti,termination-current = <192000>;
+		ti,precharge-current = <448000>;
+		ti,minimum-sys-voltage = <3400000>;
+		ti,boost-voltage = <5062000>;
+		ti,boost-max-current = <1200000>;
+
+		ti,use-ilim-pin;
+		ti,thermal-regulation-threshold = <444>;
+	};
+};
+
 &acpm_ipc {
         pmic-1 {
 		compatible = "samsung,s2mpu12-pmic";
@@ -434,11 +457,25 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
+
+	chg_en_default {
+		samsung,pins = "gpa2-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
 };
 
 &pinctrl_peri {
 	pmic_int: pmic-int-pins {
 		samsung,pins = "gpg1-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
+
+	chg_en_default {
+		samsung,pins = "gpg2-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
