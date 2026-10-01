@@ -419,8 +419,10 @@
 	clock-frequency = <26000000>;
 };
 
+
+/* disable rtc here */
 &rtc {
-	status = "okay";
+	status = "disabled";
 	clocks = <&cmu_apm CLK_GOUT_RTC_PCLK>, <&rtcclk>;
 	clock-names = "rtc", "rtc_src";
 };
