@@ -25,6 +25,7 @@ properties:
       - items:
           - enum:
               - hynetek,husb311
+              - etekmicro,et7303
           - const: richtek,rt1711h
       - items:
           - enum:
@@ -32,7 +33,7 @@ properties:
           - const: richtek,rt1715
     description:
       RT1711H support PD20, ET7304 and RT1715 support PD30 except Fast Role Swap.
-      HUSB311 is a rebrand of RT1711H which is pin and register compatible.
+      HUSB311 and ET7303 are a rebrand of RT1711H which is pin and register compatible.
 
   reg:
     maxItems: 1
