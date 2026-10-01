@@ -93,6 +93,13 @@
 			gpios = <&gpa0 7 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	vibrator {
+		compatible = "regulator-haptic";
+		haptic-supply = <&vdd_ldo31>;
+		min-microvolt = <3000000>;
+		max-microvolt = <3000000>;
+	};
 };
 
 &acpm_ipc {
