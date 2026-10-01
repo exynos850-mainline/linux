@@ -236,6 +236,14 @@ config INPUT_PMIC8XXX_PWRKEY
 	  To compile this driver as a module, choose M here: the
 	  module will be called pmic8xxx-pwrkey.
 
+config INPUT_S2MPU12_PWRKEY
+	tristate "S2MPU12 power key support"
+	depends on MFD_SEC_CORE || MFD_SEC_ACPM
+	help
+	  Say Y here if you want support for the S2MPU12 power key.
+	  This option enables the driver for the S2MPU12 power key,
+	  routed through IRQ rising and falling interrupts.
+
 config INPUT_SPARCSPKR
 	tristate "SPARC Speaker support"
 	depends on PCI && SPARC64
