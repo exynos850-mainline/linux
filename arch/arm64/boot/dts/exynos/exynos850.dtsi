@@ -387,14 +387,51 @@
 		     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
+	gpu_opp_table: opp-table-2 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-377000000 {
+			opp-hz = /bits/ 64 <377000000>;
+			opp-microvolt = <625000>;
+		};
+
+		opp-433000000 {
+			opp-hz = /bits/ 64 <433000000>;
+			opp-microvolt = <625000>;
+		};
+
+		opp-598000000 {
+			opp-hz = /bits/ 64 <598000000>;
+			opp-microvolt = <625000>;
+		};
+
+		opp-754000000 {
+			opp-hz = /bits/ 64 <754000000>;
+			opp-microvolt = <650000>;
+		};
+
+		opp-865000000 {
+			opp-hz = /bits/ 64 <865000000>;
+			opp-microvolt = <693750>;
+		};
+
+		opp-1001000000 {
+			opp-hz = /bits/ 64 <1001000000>;
+			opp-microvolt = <756250>;
+		};
+	};
+
 	firmware {
 		acpm_ipc: power-management {
 			compatible = "samsung,exynos850-acpm-ipc";
 			mboxes = <&ap2apm_mailbox>;
 			shmem = <&apm_sram>;
 			clocks = <&cmu_cpucl0 CLK_FOUT_CPUCL0_PLL>,
-				 <&cmu_cpucl1 CLK_FOUT_CPUCL1_PLL>;
-			clock-names = "cpucl0", "cpucl1";
+				 <&cmu_cpucl1 CLK_FOUT_CPUCL1_PLL>,
+				 /* <&cmu_g3d CLK_FOUT_G3D_PLL> */
+				 <&cmu_g3d CLK_GOUT_G3D_GPU_CLK>;
+			clock-names = "cpucl0", "cpucl1", "g3d";
 			#clock-cells = <1>;
 		};
 	};
@@ -551,8 +588,9 @@
 				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "job", "mmu", "gpu";
-			clocks = <&cmu_g3d CLK_GOUT_G3D_GPU_CLK>;
+			clocks = <&acpm_ipc EXYNOS850_CLK_ACPM_DVFS_G3D>;
 			clock-names = "core";
+			operating-points-v2 = <&gpu_opp_table>;
 
 			status = "disabled";
 		};
