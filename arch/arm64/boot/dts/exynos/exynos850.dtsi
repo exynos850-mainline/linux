@@ -588,8 +588,9 @@
 				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "job", "mmu", "gpu";
-			clocks = <&acpm_ipc EXYNOS850_CLK_ACPM_DVFS_G3D>;
-			clock-names = "core";
+			clocks = <&cmu_g3d CLK_GOUT_G3D_GPU_CLK>,
+				 <&acpm_ipc EXYNOS850_CLK_ACPM_DVFS_G3D>;
+			clock-names = "core", "g3d";
 			operating-points-v2 = <&gpu_opp_table>;
 
 			status = "disabled";
