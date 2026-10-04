@@ -760,7 +760,14 @@ int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
 
 	if (!sdev->mac_changed) {
 		slsi_reset_channel_flags(sdev);
-		slsi_regd_init(sdev);
+		/*
+		* slsi_regd_init() calls wiphy_apply_custom_regulatory()
+		* which takes rtnl_lock(). On mainline, slsi_start() is
+		* invoked under rtnl_lock (via cfg80211_ops->start_ap or
+		* ndo_open), so calling it here deadlocks. The regulatory
+		* domain is already applied once during slsi_dev_load(),
+		* so it is safe to skip here.
+		*/
 		kfree(sdev->default_scan_ies);
 		sdev->default_scan_ies = NULL;
 		sdev->default_scan_ies_len = 0;
