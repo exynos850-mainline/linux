@@ -1971,7 +1971,7 @@ int slsi_remain_on_channel(struct wiphy             *wiphy,
 		 struct wireless_dev      *wdev,
 		 struct ieee80211_channel *chan,
 		 unsigned int             duration,
-		 u64                      *cookie,
+		 u64                      cookie,
 		 const u8                 *rx_addr)
 {
 	SLSI_UNUSED_PARAMETER(rx_addr);
@@ -1999,8 +1999,8 @@ int slsi_remain_on_channel(struct wiphy             *wiphy,
 	if (SLSI_IS_P2P_GROUP_STATE(sdev)) {
 		slsi_assign_cookie_id(cookie, &ndev_vif->unsync.roc_cookie);
 
-		cfg80211_ready_on_channel(wdev, *cookie, chan, duration, GFP_KERNEL);
-		cfg80211_remain_on_channel_expired(wdev, *cookie, chan, GFP_KERNEL);
+		cfg80211_ready_on_channel(wdev, cookie, chan, duration, GFP_KERNEL);
+		cfg80211_remain_on_channel_expired(wdev, cookie, chan, GFP_KERNEL);
 		goto exit;
 	}
 
@@ -2068,9 +2068,9 @@ exit_with_roc:
 			   msecs_to_jiffies(duration - SLSI_P2P_ROC_EXTRA_MSEC));
 
 	slsi_assign_cookie_id(cookie, &ndev_vif->unsync.roc_cookie);
-	SLSI_NET_DBG2(dev, SLSI_CFG80211, "Cookie = 0x%llx\n", *cookie);
+	SLSI_NET_DBG2(dev, SLSI_CFG80211, "Cookie = 0x%llx\n", cookie);
 
-	cfg80211_ready_on_channel(wdev, *cookie, chan, duration, GFP_KERNEL);
+	cfg80211_ready_on_channel(wdev, cookie, chan, duration, GFP_KERNEL);
 	goto exit;
 
 exit_with_vif:
@@ -3132,7 +3132,7 @@ exit_with_vif:
 
 int slsi_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 struct cfg80211_mgmt_tx_params *params,
-		 u64 *cookie)
+		 u64 cookie)
 {
 	/* Note to explore for AP ::All public action frames which come to host should be handled properly
 	 * Additionally, if PMF is negotiated over the link, the host shall not issue "mlme-send-frame.request"
@@ -3194,8 +3194,8 @@ int slsi_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
 		/* Ideally supplicant doesn't expect Tx status for Probe Rsp. Send tx status just in case it requests ack */
 		if (!dont_wait_for_ack) {
-			slsi_assign_cookie_id(cookie, &ndev_vif->mgmt_tx_cookie);
-			cfg80211_mgmt_tx_status(wdev, *cookie, buf, len, true, GFP_KERNEL);
+			ndev_vif->mgmt_tx_cookie = cookie;
+			cfg80211_mgmt_tx_status(wdev, cookie, buf, len, true, GFP_KERNEL);
 		}
 		goto exit;
 	}
@@ -3218,8 +3218,8 @@ int slsi_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 				SLSI_NET_ERR(dev, "Failed to send action frame, r = %d\n", r);
 				goto exit;
 			}
-			slsi_assign_cookie_id(cookie, &ndev_vif->mgmt_tx_cookie);
-			r = slsi_set_mgmt_tx_data(ndev_vif, *cookie, host_tag, buf, len);
+			ndev_vif->mgmt_tx_cookie = cookie;
+			r = slsi_set_mgmt_tx_data(ndev_vif, cookie, host_tag, buf, len);
 		}
 exit:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
