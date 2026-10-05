@@ -68,9 +68,9 @@ static struct {
 /* Time to wait for CFG_REQ IRQ on 3830 */
 #define WLBT_BOOT_TIMEOUT (HZ)
 
-#ifdef CONFIG_OF_RESERVED_MEM
+//#ifdef CONFIG_OF_RESERVED_MEM
 #include <linux/of_reserved_mem.h>
-#endif
+//#endif
 static unsigned long sharedmem_base;
 static size_t sharedmem_size;
 
@@ -1832,7 +1832,7 @@ static void platform_mif_restart(struct scsc_mif_abs *interface)
 {
 }
 
-#ifdef CONFIG_OF_RESERVED_MEM
+//#ifdef CONFIG_OF_RESERVED_MEM
 static int platform_mif_wifibt_if_reserved_mem_setup(unsigned long node,
 								struct reserved_mem *remem)
 {
@@ -1852,7 +1852,7 @@ static const struct reserved_mem_ops platform_mif_wifibt_if_reserved_mem_ops = {
 
 RESERVEDMEM_OF_DECLARE(wifibt_if, "exynos,wifibt_if",
 			       &platform_mif_wifibt_if_reserved_mem_ops);
-#endif
+//#endif
 
 struct scsc_mif_abs *platform_mif_create(struct platform_device *pdev)
 {
@@ -1927,25 +1927,25 @@ struct scsc_mif_abs *platform_mif_create(struct platform_device *pdev)
 	platform->resume_handler = NULL;
 	platform->suspendresume_data = NULL;
 
-#ifdef CONFIG_OF_RESERVED_MEM
+//#ifdef CONFIG_OF_RESERVED_MEM
 	platform->mem_start = sharedmem_base;
 	platform->mem_size = sharedmem_size;
-#else
-	/* If CONFIG_OF_RESERVED_MEM is not defined, sharedmem values should be
-	 * parsed from the scsc_wifibt binding
-	 */
-	if (of_property_read_u32(pdev->dev.of_node, "sharedmem-base", &sharedmem_base)) {
-		err = -EINVAL;
-		goto error_exit;
-	}
-	platform->mem_start = sharedmem_base;
-
-	if (of_property_read_u32(pdev->dev.of_node, "sharedmem-size", &sharedmem_size)) {
-		err = -EINVAL;
-		goto error_exit;
-	}
-	platform->mem_size = sharedmem_size;
-#endif
+//#else
+//	/* If CONFIG_OF_RESERVED_MEM is not defined, sharedmem values should be
+//	 * parsed from the scsc_wifibt binding
+//	 */
+//	if (of_property_read_u32(pdev->dev.of_node, "sharedmem-base", &sharedmem_base)) {
+//		err = -EINVAL;
+//		goto error_exit;
+//	}
+//	platform->mem_start = sharedmem_base;
+//
+//	if (of_property_read_u32(pdev->dev.of_node, "sharedmem-size", &sharedmem_size)) {
+//		err = -EINVAL;
+//		goto error_exit;
+//	}
+//	platform->mem_size = sharedmem_size;
+//#endif
 #ifdef CONFIG_SCSC_SMAPPER
 	platform->smapper = NULL;
 #endif

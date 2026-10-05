@@ -76,6 +76,7 @@
 			     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "MBOX", "ALIVE", "CFG_REQ", "WDOG";
 
+		status = "okay";
 		samsung,syscon-phandle = <&pmu_system_controller>;
 		samsung,i3c_apm_pmic-syscon-phandle = <&syscon_i3c_apm_pmic>;
 		samsung,dbus_baaw-syscon-phandle = <&syscon_dbus_baaw>;
