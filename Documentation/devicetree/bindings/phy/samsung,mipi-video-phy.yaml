@@ -30,6 +30,7 @@ properties:
       - samsung,exynos5420-mipi-video-phy
       - samsung,exynos5433-mipi-video-phy
       - samsung,exynos7870-mipi-video-phy
+      - samsung,exynos850-mipi-video-phy
 
   "#phy-cells":
     const: 1
@@ -47,20 +48,22 @@ properties:
     deprecated: true
     description:
       Phandle to PMU system controller interface, valid for
-      samsung,exynos5433-mipi-video-phy and samsung,exynos7870-mipi-video-phy
-      (if not a child of PMU).
+      samsung,exynos5433-mipi-video-phy, samsung,exynos7870-mipi-video-phy
+      and samsung,exynos850-mipi-video-phy (if not a child of PMU).
 
   samsung,disp-sysreg:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to DISP system controller interface, valid for
-      samsung,exynos5433-mipi-video-phy and samsung,exynos7870-mipi-video-phy.
+      samsung,exynos5433-mipi-video-phy, samsung,exynos7870-mipi-video-phy
+      and samsung,exynos850-mipi-video-phy.
 
   samsung,cam0-sysreg:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to CAM0 system controller interface, valid for
-      samsung,exynos5433-mipi-video-phy and samsung,exynos7870-mipi-video-phy.
+      samsung,exynos5433-mipi-video-phy, samsung,exynos7870-mipi-video-phy
+      and samsung,exynos850-mipi-video-phy.
 
   samsung,cam1-sysreg:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -105,6 +108,7 @@ allOf:
         compatible:
           contains:
             const: samsung,exynos7870-mipi-video-phy
+            const: samsung,exynos850-mipi-video-phy
     then:
       properties:
         syscon: false
