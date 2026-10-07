@@ -498,6 +498,14 @@
 			compatible = "samsung,exynos850-pmu", "syscon";
 			reg = <0x11860000 0x10000>;
 
+			mipi_phy: mipi-phy {
+				compatible = "samsung,exynos850-mipi-video-phy";
+				#phy-cells = <1>;
+
+				samsung,cam0-sysreg = <&syscon_cam0>;
+				samsung,disp-sysreg = <&syscon_disp>;
+			};
+
 			poweroff: syscon-poweroff {
 				compatible = "syscon-poweroff";
 				offset = <0x30c>; /* PS_HOLD_CONTROL */
@@ -940,6 +948,20 @@
 				     "samsung,exynos850-sysreg", "syscon";
 			reg = <0x11c20000 0x10000>;
 			clocks = <&cmu_cmgp CLK_GOUT_SYSREG_CMGP_PCLK>;
+		};
+
+                syscon_disp: syscon@13080000 {
+                        compatible = "samsung,exynos850-disp-sysreg",
+                                     "samsung,exynos850-sysreg", "syscon";
+                        reg = <0x13080000 0x10000>;
+                        clocks = <&cmu_dpu CLK_GOUT_DPU_SYSREG_PCLK>;
+                };
+
+		syscon_cam0: syscon@14520500 {
+			compatible = "samsung,exynos850-cam0-sysreg", 
+				     "samsung,exynos850-sysreg", "syscon";
+			reg = <0x14520500 0x10000>;
+			clocks = <&cmu_is CLK_GOUT_IS_SYSREG_PCLK>;
 		};
 
 		usbdrd: usb@13600000 {
