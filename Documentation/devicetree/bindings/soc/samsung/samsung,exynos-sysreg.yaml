@@ -63,6 +63,8 @@ properties:
         deprecated: true
       - items:
           - enum:
+              - samsung,exynos850-disp-sysreg
+              - samsung,exynos850-cam0-sysreg
               - samsung,exynos850-cmgp-sysreg
               - samsung,exynos850-peri-sysreg
           - const: samsung,exynos850-sysreg
