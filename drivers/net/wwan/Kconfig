@@ -106,6 +106,21 @@ config IOSM
 
 	  If unsure, say N.
 
+config S5000AP_MODEM
+	tristate "Samsung Exynos Modem S5000AP driver"
+	depends on EXYNOS_MBOX
+	depends on MBOX
+	help
+	  Driver for the Samsung Exynos S5000AP modem on Samsung Exynos 850 boards,
+	  controlled via a mailbox, reserved meemory and an SMC call. The driver loads
+	  the cellular processor firmware, and powers the PMU registers and exposes the
+	  SIPC5 channels as WWAN ports and netdevs
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called s5000ap_modem.
+
+	  If unsure, say N.
+
 config MTK_T7XX
 	tristate "MediaTek PCIe 5G WWAN modem T7xx device"
 	depends on PCI

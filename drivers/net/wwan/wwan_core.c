@@ -350,6 +350,18 @@ static const struct {
 		.name = "MIPC",
 		.devsuf = "mipc",
 	},
+	[WWAN_PORT_SIT] = {
+		.name = "SIT",
+		.devsuf = "sit"
+	},
+	[WWAN_PORT_RFS] = {
+		.name = "RFS",
+		.devsuf = "rfs"
+	},
+	[WWAN_PORT_OEM] = {
+		.name = "OEM",
+		.devsuf = "oem"
+	},
 	/* WWAN_PORT_NMEA is exported via the GNSS subsystem */
 };
 
