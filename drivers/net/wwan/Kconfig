@@ -108,8 +108,6 @@ config IOSM
 
 config S5000AP_MODEM
 	tristate "Samsung Exynos Modem S5000AP driver"
-	depends on EXYNOS_MBOX
-	depends on MBOX
 	help
 	  Driver for the Samsung Exynos S5000AP modem on Samsung Exynos 850 boards,
 	  controlled via a mailbox, reserved meemory and an SMC call. The driver loads
