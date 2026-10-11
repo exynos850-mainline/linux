@@ -291,6 +291,10 @@ module_param(smc_pass_base, bool, 0644);
 MODULE_PARM_DESC(smc_pass_base,
 		 "OR the CP base address into the NORMAL-boot SMC mode when BOOT carries a MEM map");
 
+static int hw_rev = -1;
+module_param(hw_rev, int, 0644);
+MODULE_PARM_DESC(hw_rev, "override the board revision sent to the CP (-1 = auto)");
+
 /* mailbox helpers */
 static u32 sr_get(struct s5k_modem *sm, unsigned int n)
 {
@@ -1017,6 +1021,14 @@ static void s5k_set_state(struct s5k_modem *sm, enum s5k_state st)
 	WRITE_ONCE(sm->state, st);
 }
 
+static bool s5k_cmdline_rev(u32 *rev)
+{
+	static const char key[] = "modem.bl.revision=";
+	const char *p = strstr(saved_command_line, key);
+
+	return p && sscanf(p + sizeof(key) - 1, "%u", rev) == 1;
+}
+
 static void s5k_handle_cmd(struct s5k_modem *sm, u16 cmd)
 {
 	switch (cmd) {
@@ -1394,14 +1406,14 @@ static int s5k_verify(struct s5k_modem *sm, const struct s5k_img *fw)
 static void s5k_init_control_messages(struct s5k_modem *sm)
 {
 	int ds = clamp(ds_detect, 1, 2) - 1;
+	u32 rev = hw_rev >= 0 ? hw_rev : sm->hw_rev;
 
 	sr_set(sm, SR_AP2CP_STATUS, 0);
 	sr_set(sm, SR_CP2AP_STATUS, 0);
 	sr_set(sm, SR_AP2CP_MSG, 0);
 	sr_set(sm, SR_CP2AP_MSG, 0);
 	sr_update(sm, SR_AP2CP_STATUS, AP_ST_DS_DET, ds);
-	sr_update(sm, SR_AP2CP_STATUS, AP_ST_SYS_REV,
-		  sm->hw_rev <= 0xff ? sm->hw_rev : 0);
+	sr_update(sm, SR_AP2CP_STATUS, AP_ST_SYS_REV, rev <= 0xff ? rev : 0);
 }
 
 static void s5k_publish_kerneltime(struct s5k_modem *sm)
@@ -1637,6 +1649,7 @@ static int s5k_probe(struct platform_device *pdev)
 			sm->fw_name = "samsung/s5000ap/modem.bin";
 	}
 	of_property_read_u32(np, "samsung,hw-revision", &sm->hw_rev);
+	s5k_cmdline_rev(&sm->hw_rev);
 
 	/* <kind addr mask>: kind 0 = MMIO phys addr, kind 1 = SMC CP_CTRL (addr 0 S / 1 NS) */
 	ret = of_property_read_u32_array(np, "samsung,cp-status", cs, 3);
