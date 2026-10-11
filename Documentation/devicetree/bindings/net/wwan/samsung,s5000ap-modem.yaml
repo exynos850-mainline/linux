@@ -1,0 +1,149 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/wwan/samsung,s5000ap-modem.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos S5000AP cellular modem
+
+maintainers:
+  - schoosh212 <superaviation001@gmail.com>
+
+description: |
+  On-die Samsung Shannon cellular processor found on Exynos850 phones. The
+  AP communicates with it through a mailbox, a reserved mem carveout and a
+  secure-monitor call. The driver loads the CP firmware (modem.bin) itself,
+  powers the CP via PMU register sequences and exposes the SIPC5 channels as
+  WWAN ports and raw-IP netdevs.
+
+properties:
+  compatible:
+    const: samsung,s5000ap-modem
+
+  reg:
+    minItems: 1
+    items:
+      - description: CP mailbox (interrupt and shared status registers)
+      - description: AP2CP_CFG register that lets the CP CPU start
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: mailbox
+      - const: ap2cp-cfg
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: CP mailbox interrupt
+      - description: CP watchdog / reset request
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: mailbox
+      - const: cp-reset-req
+
+  memory-region:
+    maxItems: 1
+    description: >
+      Reserved (no-map) carveout shared with the CP, at least 0x8800000 bytes
+      laid out as CP 0x6900000, VSS 0x700000, IPC 0x800000, BTL 0x1000000.
+
+  firmware-name:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Firmware path, defaults to samsung/s5000ap/modem.bin.
+
+  pinctrl-0: true
+  pinctrl-names: true
+
+  samsung,hw-revision:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 255
+    description: Board revision published to the CP (androidboot.revision).
+
+  samsung,cp-status:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: >
+      How to read "CP domain powered".  The CP is considered powered when
+      (value & mask) == 1.
+    items:
+      - description: >
+          Kind, 0 for a physical MMIO address, 1 for an SMC read of a secure
+          CP_CTRL register
+        enum: [0, 1]
+      - description: >
+          MMIO physical address (kind 0) or CP_CTRL selector, 0 = CP_CTRL_S and
+          1 = CP_CTRL_NS (kind 1)
+      - description: Mask applied to the register value
+    minItems: 3
+    maxItems: 3
+
+  samsung,cp-init-seq:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: >
+      PMU steps that power the CP (downstream cal_cp_init).  Tuples of
+      <op address mask value>; op 0 update, 1 write, 2 wait, 3 delay (us), 4 SMC update, 5 SMC write (address = 0 CP_CTRL_S or 1 CP_CTRL_NS).
+    items:
+      minItems: 4
+      maxItems: 4
+
+  samsung,cp-reset-assert-seq:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: Steps that hold the CP in reset (cal_cp_reset_assert).
+    items:
+      minItems: 4
+      maxItems: 4
+
+  samsung,cp-reset-release-seq:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: Steps that release the CP reset (cal_cp_reset_release).
+    items:
+      minItems: 4
+      maxItems: 4
+
+  samsung,cp-dump-enable-seq:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      minItems: 4
+      maxItems: 4
+
+  samsung,cp-dump-disable-seq:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      minItems: 4
+      maxItems: 4
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - memory-region
+  - samsung,cp-status
+  - samsung,cp-init-seq
+  - samsung,cp-reset-assert-seq
+  - samsung,cp-reset-release-seq
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    modem@11920000 {
+        compatible = "samsung,exynos850-s5000ap-modem";
+        reg = <0x11920000 0x180>, <0x14020000 0x4>;
+        reg-names = "mailbox", "ap2cp-cfg";
+        interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "mailbox", "cp-reset-req";
+        memory-region = <&cp_rmem>;
+        firmware-name = "samsung/s5000ap/modem.bin";
+        samsung,hw-revision = <6>;
+        samsung,cp-status = <0 0x11863004 0x1>;
+        samsung,cp-init-seq = <3 0 0 1>;
+        samsung,cp-reset-assert-seq = <3 0 0 1>;
+        samsung,cp-reset-release-seq = <3 0 0 1>;
+    };
