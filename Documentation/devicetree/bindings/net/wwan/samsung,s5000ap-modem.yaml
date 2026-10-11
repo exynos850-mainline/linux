@@ -140,7 +140,7 @@ examples:
                      <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "mailbox", "cp-reset-req";
         memory-region = <&cp_rmem>;
-        firmware-name = "samsung/s5000ap/modem.bin";
+        samsung,firmware-partition = "radio";
         samsung,hw-revision = <6>;
         samsung,cp-status = <0 0x11863004 0x1>;
         samsung,cp-init-seq = <3 0 0 1>;
