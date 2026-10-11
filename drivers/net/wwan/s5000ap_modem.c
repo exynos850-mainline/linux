@@ -5,6 +5,7 @@
 
 #include <linux/arm-smccc.h>
 #include <linux/bitfield.h>
+#include <linux/blkdev.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
@@ -26,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/timekeeping.h>
 #include <linux/unaligned.h>
+#include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/wwan.h>
@@ -190,7 +192,7 @@ struct s5k_rb {
 	u32		pend_left;
 };
 
-struct s5k_modem;
+struct s5k_img { const u8 *data; size_t size; };
 
 struct s5k_ring {
 	struct s5k_modem	*sm;
@@ -242,6 +244,7 @@ struct s5k_modem {
 
 	/* firmware */
 	const char		*fw_name;
+	const char		*fw_part;
 
 	struct s5k_seq		seq_init, seq_assert, seq_release;
 	struct s5k_seq		seq_dump_on, seq_dump_off;
@@ -1144,7 +1147,7 @@ struct s5k_toc {
 #define MEM_MAP_MAGIC		0x004d454d	/* "MEM\0" after swab32 */
 #define MEM_NAME_CPI		0x00495043	/* "CPI\0" (IPC) */
 
-static const struct s5k_toc *s5k_find(const struct firmware *fw, const char *name)
+static const struct s5k_toc *s5k_find(const struct s5k_img *fw, const char *name)
 {
 	const struct s5k_toc *t = (const void *)fw->data;
 	size_t i, n;
@@ -1156,7 +1159,7 @@ static const struct s5k_toc *s5k_find(const struct firmware *fw, const char *nam
 	return NULL;
 }
 
-static void s5k_parse_mem_map(struct s5k_modem *sm, const struct firmware *fw,
+static void s5k_parse_mem_map(struct s5k_modem *sm, const struct s5k_img *fw,
 			      const struct s5k_toc *boot)
 {
 	size_t off = le32_to_cpu(boot->img_off) + MEM_MAP_OFF;
@@ -1189,7 +1192,7 @@ static void s5k_parse_mem_map(struct s5k_modem *sm, const struct firmware *fw,
 #define NV_FW_NAME		"samsung/s5000ap/nv_data.bin"
 
 static int s5k_copy_section(struct s5k_modem *sm, u8 *dst, size_t dst_size,
-			    const struct firmware *fw, const struct s5k_toc *t,
+			    const struct s5k_img *fw, const struct s5k_toc *t,
 			    bool toc_self)
 {
 	u32 io = le32_to_cpu(t->img_off), mo = le32_to_cpu(t->mem_off) & TOC_ADDR_MASK;
@@ -1207,7 +1210,65 @@ static int s5k_copy_section(struct s5k_modem *sm, u8 *dst, size_t dst_size,
 	return 0;
 }
 
-static int s5k_load_image(struct s5k_modem *sm, const struct firmware *fw)
+static void *s5k_read_partition(struct s5k_modem *sm, const char *label,
+				size_t *size)
+{
+	struct s5k_toc toc[32];
+	struct file *f;
+	char spec[64];
+	size_t total = 0, i, n;
+	void *buf;
+	loff_t pos = 0;
+	dev_t devt;
+	int ret;
+
+	snprintf(spec, sizeof(spec), "PARTLABEL=%s", label);
+	ret = early_lookup_bdev(spec, &devt);	/* built-in only: not exported */
+	if (ret)
+		return ERR_PTR(-ENODEV);
+	f = bdev_file_open_by_dev(devt, BLK_OPEN_READ, sm, NULL);
+	if (IS_ERR(f))
+		return ERR_CAST(f);
+
+	ret = kernel_read(f, toc, sizeof(toc), &pos);
+	if (ret != sizeof(toc) || strncmp(toc[0].name, "TOC", 4)) {
+		buf = ERR_PTR(-EINVAL);
+		goto out;
+	}
+	n = min_t(size_t, le32_to_cpu(toc[0].size) / sizeof(*toc), 32);
+	for (i = 0; i < n; i++) {
+		size_t end = (size_t)le32_to_cpu(toc[i].img_off) +
+			     le32_to_cpu(toc[i].size);
+		if (toc[i].name[0] && le32_to_cpu(toc[i].img_off))
+			total = max(total, end);
+	}
+	if (!total || total > SZ_128M) {
+		buf = ERR_PTR(-EINVAL);
+		goto out;
+	}
+
+	buf = vmalloc(total);
+	if (!buf) {
+		buf = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+	pos = 0;
+	for (i = 0; i < total; ) {
+		ret = kernel_read(f, buf + i, min_t(size_t, total - i, SZ_1M), &pos);
+		if (ret <= 0) {
+			vfree(buf);
+			buf = ERR_PTR(ret ?: -EIO);
+			goto out;
+		}
+		i += ret;
+	}
+	*size = total;
+out:
+	fput(f);
+	return buf;
+}
+
+static int s5k_load_image(struct s5k_modem *sm, const struct s5k_img *fw)
 {
 	const struct s5k_toc *t = (const void *)fw->data;
 	static const char * const names[] = { "TOC", "BOOT", "MAIN", "VSS" };
@@ -1291,7 +1352,7 @@ static int s5k_re_init(struct s5k_modem *sm)
 	return s5k_security_req(sm, CP_BOOT_RE_INIT, 0, 0);
 }
 
-static int s5k_verify(struct s5k_modem *sm, const struct firmware *fw)
+static int s5k_verify(struct s5k_modem *sm, const struct s5k_img *fw)
 {
 	const struct s5k_toc *toc = s5k_find(fw, "TOC"), *boot = s5k_find(fw, "BOOT"),
 			     *main_ = s5k_find(fw, "MAIN"), *vss = s5k_find(fw, "VSS");
@@ -1368,8 +1429,11 @@ static int s5k_map_ipc(struct s5k_modem *sm)
 
 static int s5k_boot(struct s5k_modem *sm)
 {
-	const struct firmware *fw;
+	struct s5k_img img = { };
+	const struct s5k_img *fw = &img;
+	const struct firmware *fwf = NULL;
 	const struct s5k_toc *boot;
+	void *pbuf = NULL;
 	int cnt, ret;
 
 	mutex_lock(&sm->boot_lock);
@@ -1379,11 +1443,26 @@ static int s5k_boot(struct s5k_modem *sm)
 	s5k_stop_queues(sm);
 	s5k_wdt_enable(sm, false);
 
-	ret = request_firmware(&fw, sm->fw_name, sm->dev);
-	if (ret) {
-		dev_err(sm->dev, "cannot load %s: %d\n", sm->fw_name, ret);
-		goto out;
+	if (sm->fw_part) {
+		pbuf = s5k_read_partition(sm, sm->fw_part, &img.size);
+		if (IS_ERR(pbuf)) {
+			ret = PTR_ERR(pbuf);
+			pbuf = NULL;
+			dev_err(sm->dev, "cannot read partition %s: %d\n",
+				sm->fw_part, ret);
+			goto out;
+		}
+		img.data = pbuf;
+	} else {
+		ret = request_firmware(&fwf, sm->fw_name, sm->dev);
+		if (ret) {
+			dev_err(sm->dev, "cannot load %s: %d\n", sm->fw_name, ret);
+			goto out;
+		}
+		img.data = fwf->data;
+		img.size = fwf->size;
 	}
+
 	boot = s5k_find(fw, "BOOT");
 	if (!boot) {
 		ret = -ENOENT;
@@ -1477,9 +1556,9 @@ static int s5k_boot(struct s5k_modem *sm)
 	s5k_wake_queues(sm);
 	dev_info(sm->dev, "CP is ONLINE\n");
 	ret = 0;
-
 out_fw:
-	release_firmware(fw);
+	vfree(pbuf);
+	release_firmware(fwf);
 out:
 	if (ret)
 		s5k_set_state(sm, S5K_OFFLINE);
@@ -1551,9 +1630,12 @@ static int s5k_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, -EINVAL, "memory-region %pa too small\n",
 				     &sm->rmem_size);
 
-	ret = of_property_read_string(np, "firmware-name", &sm->fw_name);
-	if (ret)
-		sm->fw_name = "samsung/s5000ap/modem.bin";
+	of_property_read_string(np, "samsung,firmware-partition", &sm->fw_part);
+	if (!sm->fw_part) {
+		/* no partition given: fall back to request_firmware() */
+		if (of_property_read_string(np, "firmware-name", &sm->fw_name))
+			sm->fw_name = "samsung/s5000ap/modem.bin";
+	}
 	of_property_read_u32(np, "samsung,hw-revision", &sm->hw_rev);
 
 	/* <kind addr mask>: kind 0 = MMIO phys addr, kind 1 = SMC CP_CTRL (addr 0 S / 1 NS) */
