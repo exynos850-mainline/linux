@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "exynos850.dtsi"
+#include "exynos850-s5000ap-modem.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>

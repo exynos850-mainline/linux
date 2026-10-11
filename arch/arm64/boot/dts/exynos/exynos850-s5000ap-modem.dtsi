@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device tree source for the Samsung Exynos S5000AP Modem.
+ * Copyright (C) 2026, schoosh212 <superaviation001@gmail.com>
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+#define S5K_SEQ_UPDATE		0
+#define S5K_SEQ_WRITE		1
+#define S5K_SEQ_WAIT		2
+#define S5K_SEQ_DELAY_US	3
+
+/ {
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		cp_rmem: cp-rmem@d0000000 {
+			reg = <0x0 0xd0000000 0x0 0x8800000>;
+			no-map;
+		};
+	};
+
+	modem: modem@11920000 {
+		compatible = "samsung,s5000ap-modem";
+		reg = <0x0 0x11920000 0x0 0x180>,
+		      <0x0 0x14020000 0x0 0x4>;
+		reg-names = "mailbox", "ap2cp-cfg";
+		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "mailbox", "cp-reset-req";
+
+		memory-region = <&cp_rmem>;
+		firmware-name = "samsung/s5000ap/modem.bin";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp_rffe_pins>;
+
+		/* fw is taken from samsung fw package A135FXXU5DXA2 */
+		samsung,hw-revision = <5>;
+
+		/* values pulled from downstream drivers/soc/samsung/cal-if/exynos3830/pmucal_cp_exynos3830.h */
+		samsung,cp-status = <0 0x11863004 0x1>;
+
+		samsung,cp-init-seq =
+			<4 0 0x8 0x8>,
+			<0 0x1186300c 0x8 0x8>,
+			<3 0 0 3>,
+			<0 0x11863920 0x2 0x2>,
+			<2 0x11a51700 0x20000000 0x20000000>,
+			<3 0 0 1000>,
+			<0 0x11863000 0x1 0x1>,
+			<2 0x11863004 0x1 0x20>,
+			<2 0x11863024 0x10 0x10>;
+
+		samsung,cp-reset-assert-seq =
+			<0 0x11863000 0x1 0x0>,
+			<2 0x11863004 0x1 0x0>;
+
+		samsung,cp-reset-release-seq =
+			<0 0x1186300c 0x8 0x8>,
+			<2 0x11863810 0x1 0x1>,
+			<0 0x11863b78 0x1 0x1>,
+			<0 0x11863920 0x2 0x2>,
+			<2 0x11a51700 0x20000000 0x20000000>,
+			<3 0 0 1000>,
+			<0 0x11863000 0x1 0x1>,
+			<2 0x11863004 0x1 0x1>,
+			<0 0x11863044 0x8 0x8>,
+			<0 0x11863044 0x20 0x20>,
+			<2 0x11863024 0x10 0x10>;
+
+		samsung,cp-dump-enable-seq = <0 0x11863020 0x10000 0x10000>;
+		samsung,cp-dump-disable-seq = <0 0x11863020 0x10000 0x0>;
+	};
+};
+
+&pinctrl_alive {
+	cp_rffe_pins: cp-rffe-pins {
+		samsung,pins = "gpa1-4", "gpa1-5", "gpa2-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
+};
