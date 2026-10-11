@@ -32,7 +32,7 @@
 		interrupt-names = "mailbox", "cp-reset-req";
 
 		memory-region = <&cp_rmem>;
-		firmware-name = "samsung/s5000ap/modem.bin";
+		samsung,firmware-partition = "radio";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp_rffe_pins>;
