@@ -1222,25 +1222,21 @@ static int s5k_copy_section(struct s5k_modem *sm, u8 *dst, size_t dst_size,
 	return 0;
 }
 
-static void *s5k_read_partition(struct s5k_modem *sm, const char *label,
+static void *s5k_read_partition(struct s5k_modem *sm, const char *path,
 				size_t *size)
 {
 	struct s5k_toc toc[32];
 	struct file *f;
-	char spec[64];
 	size_t total = 0, i, n;
 	void *buf;
 	loff_t pos = 0;
-	dev_t devt;
 	int ret;
 
-	snprintf(spec, sizeof(spec), "PARTLABEL=%s", label);
-	ret = early_lookup_bdev(spec, &devt);	/* built-in only: not exported */
-	if (ret)
-		return ERR_PTR(-ENODEV);
-	f = bdev_file_open_by_dev(devt, BLK_OPEN_READ, sm, NULL);
+	f = bdev_file_open_by_path(path, BLK_OPEN_READ, sm, NULL);
 	if (IS_ERR(f))
 		return ERR_CAST(f);
+
+	ret = kernel_read(f, toc, sizeof(toc), &pos);
 
 	ret = kernel_read(f, toc, sizeof(toc), &pos);
 	if (ret != sizeof(toc) || strncmp(toc[0].name, "TOC", 4)) {
