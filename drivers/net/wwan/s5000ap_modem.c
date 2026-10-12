@@ -1224,6 +1224,7 @@ static int s5k_copy_section(struct s5k_modem *sm, u8 *dst, size_t dst_size,
 static void *s5k_read_partition(struct s5k_modem *sm, const char *path,
 				size_t *size)
 {
+	static const char * const want[] = { "BOOT", "MAIN", "VSS" };
 	struct s5k_toc toc[32];
 	struct file *f;
 	size_t total = 0, i, n;
@@ -1253,8 +1254,11 @@ static void *s5k_read_partition(struct s5k_modem *sm, const char *path,
 	for (i = 0; i < n; i++) {
 		size_t end = (size_t)le32_to_cpu(toc[i].img_off) +
 			     le32_to_cpu(toc[i].size);
-		if (toc[i].name[0] && le32_to_cpu(toc[i].img_off))
-			total = max(total, end);
+		int k;
+
+		for (k = 0; k < ARRAY_SIZE(want); k++)
+			if (!strncmp(toc[i].name, want[k], sizeof(toc[i].name)))
+				total = max(total, end);
 	}
 	dev_info(sm->dev, "B: n %zu total %#zx\n", n, total);
 	if (!total || total > SZ_128M) {
