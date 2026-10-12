@@ -32,7 +32,7 @@
 		interrupt-names = "mailbox", "cp-reset-req";
 
 		memory-region = <&cp_rmem>;
-		samsung,firmware-partition = "/dev/mmcblk0p22";
+		samsung,firmware-devt = <179 22>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp_rffe_pins>;
