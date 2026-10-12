@@ -32,12 +32,13 @@
 		interrupt-names = "mailbox", "cp-reset-req";
 
 		memory-region = <&cp_rmem>;
-		samsung,firmware-partition = "radio";
+		samsung,firmware-partition = "/dev/mmcblk0p22";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp_rffe_pins>;
 
-		/* fw is taken from samsung fw package A135FXXU5DXA2 */
+		/* /sys/module/s5000ap_modem/parameters/hw_rev */
+		/* use binary 5 as the fallback version, tested on bin 5 fw */
 		samsung,hw-revision = <5>;
 
 		/* values pulled from downstream drivers/soc/samsung/cal-if/exynos3830/pmucal_cp_exynos3830.h */
