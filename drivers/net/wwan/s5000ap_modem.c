@@ -529,11 +529,6 @@ static unsigned int circ_space(unsigned int q, unsigned int in, unsigned int out
 	return in < out ? out - in - 1 : q + out - in - 1;
 }
 
-static unsigned int circ_usage(unsigned int q, unsigned int in, unsigned int out)
-{
-	return in >= out ? in - out : q - (out - in);
-}
-
 static int s5k_sbd_layout(struct s5k_modem *sm)
 {
 	u8 *desc = sm->ipc + SBD_DESC_OFF;
