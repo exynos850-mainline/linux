@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/kdev_t.h>
 #include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -245,6 +246,8 @@ struct s5k_modem {
 	/* firmware */
 	const char		*fw_name;
 	const char		*fw_part;
+	u32			fw_devt[2];
+	bool			fw_devt_set;
 
 	struct s5k_seq		seq_init, seq_assert, seq_release;
 	struct s5k_seq		seq_dump_on, seq_dump_off;
@@ -256,7 +259,8 @@ struct s5k_modem {
 
 	/* boot state machine */
 	struct mutex		boot_lock;
-	struct work_struct	boot_work;
+	struct delayed_work	boot_work;
+	unsigned int		fw_retries;
 	struct completion	init_cmpl;
 	enum s5k_state		state;
 	bool			sbd_active;
@@ -1227,14 +1231,21 @@ static void *s5k_read_partition(struct s5k_modem *sm, const char *path,
 	loff_t pos = 0;
 	int ret;
 
-	f = bdev_file_open_by_path(path, BLK_OPEN_READ, sm, NULL);
+	if (sm->fw_devt_set)
+		f = bdev_file_open_by_dev(MKDEV(sm->fw_devt[0], sm->fw_devt[1]),
+					  BLK_OPEN_READ, sm, NULL);
+	else
+		f = bdev_file_open_by_path(path, BLK_OPEN_READ, sm, NULL);
+
 	if (IS_ERR(f))
 		return ERR_CAST(f);
 
 	ret = kernel_read(f, toc, sizeof(toc), &pos);
-
-	ret = kernel_read(f, toc, sizeof(toc), &pos);
+	dev_info(sm->dev, "partition %u:%u: read %d, name '%.4s', toc size %#x\n",
+		 MAJOR(f->f_inode->i_rdev), MINOR(f->f_inode->i_rdev), ret,
+		 toc[0].name, le32_to_cpu(toc[0].size));
 	if (ret != sizeof(toc) || strncmp(toc[0].name, "TOC", 4)) {
+		dev_err(sm->dev, "A: toc check ret %d name '%.4s'\n", ret, toc[0].name);
 		buf = ERR_PTR(-EINVAL);
 		goto out;
 	}
@@ -1245,7 +1256,9 @@ static void *s5k_read_partition(struct s5k_modem *sm, const char *path,
 		if (toc[i].name[0] && le32_to_cpu(toc[i].img_off))
 			total = max(total, end);
 	}
+	dev_info(sm->dev, "B: n %zu total %#zx\n", n, total);
 	if (!total || total > SZ_128M) {
+		dev_err(sm->dev, "B: bad total\n");
 		buf = ERR_PTR(-EINVAL);
 		goto out;
 	}
@@ -1259,6 +1272,8 @@ static void *s5k_read_partition(struct s5k_modem *sm, const char *path,
 	for (i = 0; i < total; ) {
 		ret = kernel_read(f, buf + i, min_t(size_t, total - i, SZ_1M), &pos);
 		if (ret <= 0) {
+			dev_err(sm->dev, "C: read at %zu of %zu returned %d (pos %lld)\n",
+				i, total, ret, pos);
 			vfree(buf);
 			buf = ERR_PTR(ret ?: -EIO);
 			goto out;
@@ -1446,7 +1461,7 @@ static int s5k_boot(struct s5k_modem *sm)
 	s5k_stop_queues(sm);
 	s5k_wdt_enable(sm, false);
 
-	if (sm->fw_part) {
+	if (sm->fw_part || sm->fw_devt_set) {
 		pbuf = s5k_read_partition(sm, sm->fw_part, &img.size);
 		if (IS_ERR(pbuf)) {
 			ret = PTR_ERR(pbuf);
@@ -1571,9 +1586,14 @@ out:
 
 static void s5k_boot_work(struct work_struct *w)
 {
-	struct s5k_modem *sm = container_of(w, struct s5k_modem, boot_work);
+	struct s5k_modem *sm = container_of(to_delayed_work(w),
+					    struct s5k_modem, boot_work);
+	int ret = s5k_boot(sm);
 
-	s5k_boot(sm);
+	/* rootfs / eMMC may not be ready yet: try again in 5 s */
+	if ((ret == -ENOENT || ret == -ENODEV || ret == -ENXIO) &&
+	    sm->fw_retries++ < 120)
+		schedule_delayed_work(&sm->boot_work, 5 * HZ);
 }
 
 static int s5k_dbg_boot_set(void *data, u64 val)
@@ -1581,7 +1601,7 @@ static int s5k_dbg_boot_set(void *data, u64 val)
 	struct s5k_modem *sm = data;
 
 	if (val)
-		schedule_work(&sm->boot_work);
+		schedule_delayed_work(&sm->boot_work, 0);
 	return 0;
 }
 DEFINE_DEBUGFS_ATTRIBUTE(s5k_dbg_boot_fops, NULL, s5k_dbg_boot_set, "%llu\n");
@@ -1605,7 +1625,7 @@ static int s5k_probe(struct platform_device *pdev)
 	mutex_init(&sm->boot_lock);
 	init_completion(&sm->init_cmpl);
 	init_waitqueue_head(&sm->txq_wq);
-	INIT_WORK(&sm->boot_work, s5k_boot_work);
+	INIT_DELAYED_WORK(&sm->boot_work, s5k_boot_work);
 	device_init_wakeup(dev, true);
 
 	sm->mbox = devm_platform_ioremap_resource_byname(pdev, "mailbox");
@@ -1641,6 +1661,9 @@ static int s5k_probe(struct platform_device *pdev)
 	}
 	of_property_read_u32(np, "samsung,hw-revision", &sm->hw_rev);
 	s5k_cmdline_rev(&sm->hw_rev);
+
+	sm->fw_devt_set = !of_property_read_u32_array(np, "samsung,firmware-devt",
+						      sm->fw_devt, 2);
 
 	/* <kind addr mask>: kind 0 = MMIO phys addr, kind 1 = SMC CP_CTRL (addr 0 S / 1 NS) */
 	ret = of_property_read_u32_array(np, "samsung,cp-status", cs, 3);
@@ -1694,7 +1717,7 @@ static int s5k_probe(struct platform_device *pdev)
 	sm->dbgfs = debugfs_create_dir("s5000ap-modem", NULL);
 	debugfs_create_file("boot", 0200, sm->dbgfs, sm, &s5k_dbg_boot_fops);
 
-	schedule_work(&sm->boot_work);
+	schedule_delayed_work(&sm->boot_work, 0);
 	return 0;
 }
 
@@ -1706,7 +1729,7 @@ static void s5k_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(sm->dbgfs);
 	writel(0xffff0000, sm->mbox + MBOX_INTMR0);
 	disable_irq(sm->mbox_irq);
-	cancel_work_sync(&sm->boot_work);
+	cancel_delayed_work_sync(&sm->boot_work);
 	smp_store_release(&sm->sbd_active, false);
 
 	for (i = 0; i < S5K_PDP_COUNT; i++)
