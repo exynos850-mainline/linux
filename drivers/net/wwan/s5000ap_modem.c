@@ -1373,7 +1373,9 @@ static int s5k_security_req(struct s5k_modem *sm, u32 mode, unsigned long p2,
 
 static int s5k_re_init(struct s5k_modem *sm)
 {
-	return s5k_security_req(sm, CP_BOOT_RE_INIT, 0, 0);
+	if (s5k_security_req(sm, CP_BOOT_RE_INIT, 0, 0))
+		dev_warn(sm->dev, "RE_INIT refused, continuing\n");
+	return 0;
 }
 
 static int s5k_verify(struct s5k_modem *sm, const struct s5k_img *fw)
