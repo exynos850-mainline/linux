@@ -466,8 +466,10 @@ static int s5k_run_seq(struct s5k_modem *sm, const struct s5k_seq *seq)
 			break;
 		case SEQ_WAIT:
 			if (readl_poll_timeout(o->reg, v,
-					       (v & o->mask) == o->val, 10, 100000)) {
-				dev_err(sm->dev, "PMU wait step %d timed out\n", i);
+					       (v & o->mask) == o->val, 100, 1000000)) {
+				dev_err(sm->dev,
+					"PMU wait step %d timed out: %p = %#x (want %#x & %#x)\n",
+					i, o->reg, v, o->val, o->mask);
 				return -ETIMEDOUT;
 			}
 			break;
@@ -1507,8 +1509,9 @@ static int s5k_boot(struct s5k_modem *sm)
 		ret = s5k_run_seq(sm, &sm->seq_release);
 		mbox_sw_reset(sm);
 	}
-	if (ret)
+	if (ret) {
 		goto out_fw;
+	}
 
 	/* 2. RE_INIT security mode (cbd runs this before any image load) */
 	ret = s5k_re_init(sm);
