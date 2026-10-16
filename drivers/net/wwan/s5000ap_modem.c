@@ -1453,6 +1453,33 @@ static int s5k_map_ipc(struct s5k_modem *sm)
 	return s5k_sbd_layout(sm);
 }
 
+static void s5k_dump_state(struct s5k_modem *sm)
+{
+	static const u32 offs[] = { 0x00, 0x04, 0x08, 0x0c, 0x20, 0x24, 0x44 };
+	void __iomem *pmu = ioremap(0x11863000, 0x60);
+	u32 v;
+	int i;
+
+	for (i = 0; i < 16; i++)
+		dev_info(sm->dev, "ISSR%d = %#010x\n", i, sr_get(sm, i));
+	dev_info(sm->dev, "INTSR0 %#x INTMR0 %#x\n",
+		 readl(sm->mbox + MBOX_INTSR0), readl(sm->mbox + MBOX_INTMR0));
+	if (pmu) {
+		for (i = 0; i < ARRAY_SIZE(offs); i++)
+			dev_info(sm->dev, "PMU+%#x = %#010x\n", 0x3000 + offs[i],
+				 readl(pmu + offs[i]));
+		iounmap(pmu);
+	}
+	if (!s5k_smc_ctrl_read(sm, 0, &v))
+		dev_info(sm->dev, "CP_CTRL_S  = %#010x\n", v);
+	if (!s5k_smc_ctrl_read(sm, 1, &v))
+		dev_info(sm->dev, "CP_CTRL_NS = %#010x\n", v);
+	print_hex_dump(KERN_INFO, "ipc ctrl: ", DUMP_PREFIX_OFFSET, 16, 4,
+		       sm->ipc, 0x40, false);
+	print_hex_dump(KERN_INFO, "srinfo: ", DUMP_PREFIX_OFFSET, 16, 4,
+		       sm->ipc + 0xf800, 0x100, false);
+}
+
 static int s5k_boot(struct s5k_modem *sm)
 {
 	struct s5k_img img = { };
@@ -1561,11 +1588,15 @@ static int s5k_boot(struct s5k_modem *sm)
 		if (!cnt) {
 			dev_err(sm->dev, "CP never reported alive (status %#x)\n",
 				sr_get(sm, SR_CP2AP_STATUS));
+			s5k_dump_state(sm);
 			ret = -EACCES;
 			goto out_fw;
 		}
 		usleep_range(10000, 20000);
 	}
+	dev_info(sm->dev, "CP alive: ISSR3 %#010x\n", sr_get(sm, SR_CP2AP_STATUS));
+	mbox_unmask(sm);
+
 	sr_update(sm, SR_AP2CP_STATUS, AP_ST_AP_STATUS, 1);
 	sr_update(sm, SR_AP2CP_STATUS, AP_ST_PDA_ACTIVE, 1);
 
@@ -1573,6 +1604,7 @@ static int s5k_boot(struct s5k_modem *sm)
 	if (!wait_for_completion_timeout(&sm->init_cmpl, 15 * HZ)) {
 		dev_err(sm->dev, "timeout waiting for PHONE_START (cp2ap %#x)\n",
 			sr_get(sm, SR_CP2AP_MSG));
+		s5k_dump_state(sm);
 		ret = -ETIMEDOUT;
 		goto out_fw;
 	}
