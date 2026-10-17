@@ -1453,6 +1453,113 @@ static int s5k_map_ipc(struct s5k_modem *sm)
 	return s5k_sbd_layout(sm);
 }
 
+/* boot handshake over legacy NORM_RAW ring */
+#define LEG_RAW_TXQ_HEAD	0x18
+#define LEG_RAW_TXQ_TAIL	0x1c
+#define LEG_RAW_RXQ_HEAD	0x20
+#define LEG_RAW_RXQ_TAIL	0x24
+#define LEG_RAW_TXQ_BUFF	0x3000
+#define LEG_RAW_TXQ_SIZE	0x1fd000
+#define LEG_RAW_RXQ_BUFF	0x200000
+#define LEG_RAW_RXQ_SIZE	0x200000
+#define SIPC5_CH_BOOT_0		215
+
+static u32 leg_rd(struct s5k_modem *sm, u32 off)
+{
+	return READ_ONCE(*(u32 *)(sm->ipc + off));
+}
+
+static void leg_wr(struct s5k_modem *sm, u32 off, u32 v)
+{
+	WRITE_ONCE(*(u32 *)(sm->ipc + off), v);
+}
+
+static void leg_copy_in(struct s5k_modem *sm, u32 buf, u32 size, u32 off,
+			const void *src, u32 len)
+{
+	u32 first = min(len, size - off);
+
+	memcpy(sm->ipc + buf + off, src, first);
+	if (first < len)
+		memcpy(sm->ipc + buf, src + first, len - first);
+}
+
+static void leg_copy_out(struct s5k_modem *sm, u32 buf, u32 size, u32 off,
+			 void *dst, u32 len)
+{
+	u32 first = min(len, size - off);
+
+	memcpy(dst, sm->ipc + buf + off, first);
+	if (first < len)
+		memcpy(dst + first, sm->ipc + buf, len - first);
+}
+
+static int s5k_udl_xchg(struct s5k_modem *sm, u32 req, u32 exp)
+{
+	u8 fr[8] = { SIPC5_START_MASK | 0x04, SIPC5_CH_BOOT_0, 8, 0 };
+	u8 rx[16];
+	u32 in, out, hlen, flen, total, val;
+	int i;
+
+	put_unaligned_le32(req, fr + 4);
+	in = leg_rd(sm, LEG_RAW_TXQ_HEAD);
+	out = leg_rd(sm, LEG_RAW_TXQ_TAIL);
+	if (in >= LEG_RAW_TXQ_SIZE || out >= LEG_RAW_TXQ_SIZE ||
+	    circ_space(LEG_RAW_TXQ_SIZE, in, out) < sizeof(fr))
+		return -ENOSPC;
+	leg_copy_in(sm, LEG_RAW_TXQ_BUFF, LEG_RAW_TXQ_SIZE, in, fr, sizeof(fr));
+	dma_wmb();
+	leg_wr(sm, LEG_RAW_TXQ_HEAD, (in + sizeof(fr)) % LEG_RAW_TXQ_SIZE);
+
+	for (i = 0; i < 10000; i++) {		/* ~10 s */
+		if (leg_rd(sm, LEG_RAW_RXQ_HEAD) != leg_rd(sm, LEG_RAW_RXQ_TAIL))
+			break;
+		usleep_range(900, 1100);
+	}
+	if (i == 10000) {
+		dev_err(sm->dev, "udl %#x: no reply from CP\n", req);
+		return -ETIMEDOUT;
+	}
+
+	in = leg_rd(sm, LEG_RAW_RXQ_HEAD);
+	out = leg_rd(sm, LEG_RAW_RXQ_TAIL);
+	if (in >= LEG_RAW_RXQ_SIZE || out >= LEG_RAW_RXQ_SIZE)
+		return -EIO;
+	dma_rmb();
+	leg_copy_out(sm, LEG_RAW_RXQ_BUFF, LEG_RAW_RXQ_SIZE, out, rx, sizeof(rx));
+
+	if ((rx[0] & SIPC5_START_MASK) != SIPC5_START_MASK ||
+	    rx[1] != SIPC5_CH_BOOT_0) {
+		dev_err(sm->dev, "udl %#x: unexpected reply framing\n", req);
+		print_hex_dump(KERN_ERR, "udl rx: ", DUMP_PREFIX_OFFSET, 16, 1,
+			       rx, sizeof(rx), false);
+		leg_wr(sm, LEG_RAW_RXQ_TAIL, in);
+		return -EPROTO;
+	}
+	hlen = sipc5_hdr_len(rx);
+	flen = sipc5_frame_len(rx);
+	total = (rx[0] & 0x04) ? ALIGN(flen, 8) : flen;
+	val = get_unaligned_le32(rx + hlen);
+	leg_wr(sm, LEG_RAW_RXQ_TAIL, (out + total) % LEG_RAW_RXQ_SIZE);
+	smp_mb();
+
+	if (val != exp) {
+		dev_err(sm->dev, "udl: sent %#x, got %#x, wanted %#x\n", req, val, exp);
+		return -EPROTO;
+	}
+	dev_info(sm->dev, "udl: %#x -> %#x ok\n", req, val);
+	return 0;
+}
+
+static int s5k_boot_handshake(struct s5k_modem *sm)
+{
+	int ret = s5k_udl_xchg(sm, 0x900d, 0xa00d);	/* stage_done(0) */
+
+	if (!ret)
+		ret = s5k_udl_xchg(sm, 0x9f00, 0xaf00);	/* stage_start(0xf) */
+	return ret;
+}
+
 static void s5k_dump_state(struct s5k_modem *sm)
 {
 	static const u32 offs[] = { 0x00, 0x04, 0x08, 0x0c, 0x20, 0x24, 0x44 };
@@ -1599,6 +1706,13 @@ static int s5k_boot(struct s5k_modem *sm)
 
 	sr_update(sm, SR_AP2CP_STATUS, AP_ST_AP_STATUS, 1);
 	sr_update(sm, SR_AP2CP_STATUS, AP_ST_PDA_ACTIVE, 1);
+
+	ret = s5k_boot_handshake(sm);
+	if (ret) {
+		dev_err(sm->dev, "boot handshake failed: %d\n", ret);
+		s5k_dump_state(sm);
+		goto out_fw;
+	}
 
 	/* 6. INIT_START / PHONE_START are handled in the IRQ thread */
 	if (!wait_for_completion_timeout(&sm->init_cmpl, 15 * HZ)) {
