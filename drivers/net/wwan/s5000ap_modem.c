@@ -26,6 +26,7 @@
 #include <linux/sizes.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
+#include <linux/seq_file.h>
 #include <linux/timekeeping.h>
 #include <linux/unaligned.h>
 #include <linux/vmalloc.h>
@@ -261,6 +262,7 @@ struct s5k_modem {
 	struct mutex		boot_lock;
 	struct delayed_work	boot_work;
 	unsigned int		fw_retries;
+	u32			irq_cnt;
 	struct completion	init_cmpl;
 	enum s5k_state		state;
 	bool			sbd_active;
@@ -298,6 +300,10 @@ MODULE_PARM_DESC(smc_pass_base,
 static int hw_rev = -1;
 module_param(hw_rev, int, 0644);
 MODULE_PARM_DESC(hw_rev, "override the board revision sent to the CP (-1 = auto)");
+
+static bool trace;
+module_param(trace, bool, 0644);
+MODULE_PARM_DESC(trace, "log every ring frame (first 32 bytes)");
 
 /* mailbox helpers */
 static u32 sr_get(struct s5k_modem *sm, unsigned int n)
@@ -668,6 +674,10 @@ static int s5k_ring_send(struct s5k_ring *r, const void *data, u32 len,
 	WRITE_ONCE(*rb->wp, in + 1 >= rb->n ? 0 : in + 1);
 	spin_unlock_irqrestore(&r->tx_lock, flags);
 
+	if (trace)
+		dev_info(sm->dev, "tx %s[%u] len %u: %*ph\n", r->cfg->name, in,
+			 total, (int)min(total, 32u), dst);
+
 	send_ipc_irq(sm, MASK_INT_VALID | MASK_SEND_DATA);
 	return 0;
 }
@@ -726,6 +736,10 @@ static void s5k_rx_slot(struct s5k_ring *r, struct s5k_rb *rb, u16 out)
 				     r->cfg->name, len, rb->sz);
 		return;
 	}
+
+	if (trace)
+		dev_info(sm->dev, "rx %s[%u] len %u: %*ph\n", r->cfg->name, out,
+		len, (int)min(len, 32u), src);
 
 	if (!r->cfg->lnk_hdr) {
 		s5k_net_rx(sm, lw >> 16, src, len);
@@ -1085,6 +1099,7 @@ static irqreturn_t s5k_mbox_thread(int irq, void *data)
 {
 	struct s5k_modem *sm = data;
 	u32 p = atomic_xchg(&sm->pending, 0);
+   	sm->irq_cnt++;
 
 	if (p & BIT(IRQ_CP2AP_MSG)) {
 		u32 v = sr_get(sm, SR_CP2AP_MSG);
@@ -1751,6 +1766,32 @@ static void s5k_boot_work(struct work_struct *w)
 		schedule_delayed_work(&sm->boot_work, 5 * HZ);
 }
 
+static int s5k_status_show(struct seq_file *m, void *unused)
+{
+	struct s5k_modem *sm = m->private;
+	int i;
+
+	seq_printf(m, "state %d sbd_active %d tx_suspend %d irqs %u\n",
+		   sm->state, sm->sbd_active, sm->tx_suspend, sm->irq_cnt);
+	seq_printf(m, "ISSR0 %#x ISSR1 %#x ISSR2 %#x ISSR3 %#x INTMR0 %#x\n",
+   		   sr_get(sm, 0), sr_get(sm, 1), sr_get(sm, 2), sr_get(sm, 3),
+		   readl(sm->mbox + MBOX_INTMR0));
+	if (!smp_load_acquire(&sm->sbd_active))
+		return 0;
+	for (i = 0; i < S5K_NRINGS; i++) {
+		struct s5k_ring *r = &sm->ring[i];
+
+	seq_printf(m, "%-16s ch%3u  UL wp %4u rp %4u/%u   DL wp %4u rp %4u/%u\n",
+   			r->cfg->name, r->cfg->ch,
+   			READ_ONCE(*r->rb[S5K_UL].wp), READ_ONCE(*r->rb[S5K_UL].rp),
+   			r->rb[S5K_UL].n,
+   			READ_ONCE(*r->rb[S5K_DL].wp), READ_ONCE(*r->rb[S5K_DL].rp),
+   			r->rb[S5K_DL].n);
+	}
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(s5k_status);
+
 static int s5k_dbg_boot_set(void *data, u64 val)
 {
 	struct s5k_modem *sm = data;
@@ -1871,6 +1912,7 @@ static int s5k_probe(struct platform_device *pdev)
 
 	sm->dbgfs = debugfs_create_dir("s5000ap-modem", NULL);
 	debugfs_create_file("boot", 0200, sm->dbgfs, sm, &s5k_dbg_boot_fops);
+	debugfs_create_file("status", 0400, sm->dbgfs, sm, &s5k_status_fops);
 
 	schedule_delayed_work(&sm->boot_work, 0);
 	return 0;
