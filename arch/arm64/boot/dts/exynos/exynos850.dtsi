@@ -899,6 +899,7 @@
 			clock-names = "sysmmu";
 			clocks = <&cmu_dpu CLK_GOUT_DPU_SMMU_CLK>;
 			#iommu-cells = <0>;
+			samsung,clocks-always-on;
 		};
 
 		sysmmu_is0: sysmmu@14550000 {
@@ -965,6 +966,7 @@
 				 <&cmu_dpu CLK_GOUT_DPU_SMMU_CLK>;
 			clock-names = "aclk", "dma", "dpp", "ppmu-aclk",
 				      "ppmu-pclk", "smmu";
+			iommus = <&sysmmu_dpu>;
 			status = "disabled";
 		};
 
