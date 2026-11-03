@@ -997,6 +997,7 @@ static struct platform_driver s5m_rtc_driver = {
 		.pm	= &s5m_rtc_pm_ops,
 	},
 	.probe		= s5m_rtc_probe,
+	.shutdown	= s5m_rtc_shutdown,
 	.id_table	= s5m_rtc_id,
 };
 
