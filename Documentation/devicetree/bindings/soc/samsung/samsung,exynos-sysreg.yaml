@@ -64,6 +64,7 @@ properties:
       - items:
           - enum:
               - samsung,exynos850-cmgp-sysreg
+              - samsung,exynos850-dpu-sysreg
               - samsung,exynos850-peri-sysreg
           - const: samsung,exynos850-sysreg
           - const: syscon
@@ -101,6 +102,7 @@ allOf:
               - google,gs101-peric0-sysreg
               - google,gs101-peric1-sysreg
               - samsung,exynos850-cmgp-sysreg
+              - samsung,exynos850-dpu-sysreg
               - samsung,exynos850-peri-sysreg
               - samsung,exynos850-sysreg
               - samsung,exynos8895-fsys0-sysreg
