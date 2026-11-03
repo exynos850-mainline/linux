@@ -299,6 +299,7 @@ struct sysmmu_drvdata {
 	struct clk *aclk;		/* SYSMMU's aclk clock */
 	struct clk *pclk;		/* SYSMMU's pclk clock */
 	struct clk *clk_master;		/* master's device clock */
+	bool clocks_always_on;		/* clocks are never gated */
 	spinlock_t lock;		/* lock for modifying state */
 	bool active;			/* current status */
 	struct exynos_iommu_domain *domain; /* domain we belong to */
@@ -493,6 +494,9 @@ static void __sysmmu_set_ptbase(struct sysmmu_drvdata *data, phys_addr_t pgd)
 
 static void __sysmmu_enable_clocks(struct sysmmu_drvdata *data)
 {
+	if (data->clocks_always_on)
+		return;
+
 	BUG_ON(clk_prepare_enable(data->clk_master));
 	BUG_ON(clk_prepare_enable(data->clk));
 	BUG_ON(clk_prepare_enable(data->pclk));
@@ -501,6 +505,9 @@ static void __sysmmu_enable_clocks(struct sysmmu_drvdata *data)
 
 static void __sysmmu_disable_clocks(struct sysmmu_drvdata *data)
 {
+	if (data->clocks_always_on)
+		return;
+
 	clk_disable_unprepare(data->aclk);
 	clk_disable_unprepare(data->pclk);
 	clk_disable_unprepare(data->clk);
@@ -803,6 +810,15 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 
 	data->sysmmu = dev;
 	spin_lock_init(&data->lock);
+
+	/*
+	 * Some SysMMUs stop translating for good once their clock has been
+	 * gated, so enable the clocks once and keep them running.
+	 */
+	if (of_property_read_bool(dev->of_node, "samsung,clocks-always-on")) {
+		__sysmmu_enable_clocks(data);
+		data->clocks_always_on = true;
+	}
 
 	__sysmmu_get_version(data);
 
