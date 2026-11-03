@@ -65,6 +65,13 @@ properties:
   "#iommu-cells":
     const: 0
 
+  samsung,clocks-always-on:
+    type: boolean
+    description:
+      Keep the clocks of the System MMU enabled at all times. Some System
+      MMUs, like the one of the display controller on Exynos850, stop
+      translating for good once their clock has been gated.
+
   power-domains:
     description: |
       Required if the System MMU is needed to gate its power.
