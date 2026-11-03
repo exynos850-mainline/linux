@@ -36,6 +36,14 @@ config DRM_EXYNOS7_DECON
 	help
 	  Choose this option if you want to use Exynos DECON for DRM.
 
+config DRM_EXYNOS850_DECON
+	bool "DECON on Exynos850"
+	help
+	  Choose this option if you want to use the Exynos850 DECON for DRM.
+	  The DECON blends the windows fetched by the DPU_DMA channels and
+	  sends the result to the MIPI-DSI master. Only video mode output is
+	  supported.
+
 config DRM_EXYNOS_MIXER
 	bool "Mixer"
 	help
@@ -65,6 +73,21 @@ config DRM_EXYNOS_DSI
 	default n
 	help
 	  This enables support for Exynos MIPI-DSI device.
+
+config DRM_EXYNOS850_DSI
+	bool "MIPI-DSI host on Exynos850"
+	depends on DRM_EXYNOS850_DECON
+	select DRM_BRIDGE_CONNECTOR
+	select DRM_DISPLAY_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	select DRM_PANEL_BRIDGE
+	select MFD_SYSCON
+	help
+	  This enables support for the MIPI-DSI master of the Exynos850 and
+	  its integrated D-PHY. It drives a single video mode panel, which is
+	  connected to the DECON as an LCD output. Say Y if your device has a
+	  DSI panel.
 
 config DRM_EXYNOS_DP
 	bool "Exynos specific extensions for Analogix DP driver"
