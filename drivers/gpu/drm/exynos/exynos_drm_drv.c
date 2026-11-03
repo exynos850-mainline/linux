@@ -7,6 +7,7 @@
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
  */
 
+#include <linux/aperture.h>
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -168,6 +169,9 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRV_PTR(decon_driver, CONFIG_DRM_EXYNOS7_DECON),
 		DRM_COMPONENT_DRIVER
 	}, {
+		DRV_PTR(exynos850_decon_driver, CONFIG_DRM_EXYNOS850_DECON),
+		DRM_COMPONENT_DRIVER
+	}, {
 		DRV_PTR(mixer_driver, CONFIG_DRM_EXYNOS_MIXER),
 		DRM_COMPONENT_DRIVER
 	}, {
@@ -175,6 +179,9 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(dsi_driver, CONFIG_DRM_EXYNOS_DSI),
+		DRM_COMPONENT_DRIVER
+	}, {
+		DRV_PTR(exynos850_dsi_driver, CONFIG_DRM_EXYNOS850_DSI),
 		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(mic_driver, CONFIG_DRM_EXYNOS_MIC),
@@ -272,6 +279,11 @@ static int exynos_drm_bind(struct device *dev)
 	ret = component_bind_all(drm->dev, drm);
 	if (ret)
 		goto err_mode_config_cleanup;
+
+	/* Take over the display from a firmware framebuffer, if any. */
+	ret = aperture_remove_all_conflicting_devices(exynos_drm_driver.name);
+	if (ret)
+		goto err_unbind_all;
 
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret)
