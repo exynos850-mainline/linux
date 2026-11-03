@@ -61,6 +61,13 @@ properties:
   iommus:
     maxItems: 1
 
+  memory-region:
+    maxItems: 1
+    description:
+      Framebuffer left running by the bootloader. Its reserved-memory node
+      should carry an identity iommu-addresses entry so that scanout keeps
+      working once the IOMMU is enabled.
+
   power-domains:
     maxItems: 1
 
