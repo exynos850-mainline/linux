@@ -22,6 +22,7 @@ struct acpm_clk {
 	unsigned int mbox_chan_id;
 	struct acpm_handle *handle;
 	const struct acpm_clk_driver_data *drv_data;
+	unsigned long rate;
 };
 
 struct acpm_clk_variant {
@@ -32,8 +33,11 @@ struct acpm_clk_driver_data {
 	const struct acpm_clk_variant *clks;
 	unsigned int nr_clks;
 	unsigned int mbox_chan_id;
-	/* For SoCs where ACPM firmware doesn't implement get_rate call */
-	unsigned long (*get_rate)(struct clk_hw *clk, unsigned long parent_rate);
+	/*
+	 * For SoCs where ACPM firmware doesn't implement get_rate call: cache
+	 * the last rate set instead, starting from the rate of the parent.
+	 */
+	bool cache_rate;
 };
 
 #define to_acpm_clk(clk) container_of(clk, struct acpm_clk, hw)
@@ -72,17 +76,11 @@ static const struct acpm_clk_variant gs101_acpm_clks[] = {
 	ACPM_CLK("bo"),
 };
 
-static unsigned long bypass_acpm_exynos850_get_rate(struct clk_hw *hw,
-						    unsigned long parent_rate)
-{
-	return parent_rate;
-}
-
 static const struct acpm_clk_driver_data acpm_clk_exynos850 = {
 	.clks = exynos850_acpm_clks,
 	.nr_clks = ARRAY_SIZE(exynos850_acpm_clks),
 	.mbox_chan_id = 0,
-	.get_rate = bypass_acpm_exynos850_get_rate,
+	.cache_rate = true,
 };
 
 static const struct acpm_clk_driver_data acpm_clk_gs101 = {
@@ -96,8 +94,16 @@ static unsigned long acpm_clk_recalc_rate(struct clk_hw *hw,
 {
 	struct acpm_clk *clk = to_acpm_clk(hw);
 
-	if (clk->drv_data->get_rate)
-		return clk->drv_data->get_rate(hw, parent_rate);
+	if (clk->drv_data->cache_rate) {
+		/*
+		 * The firmware changes the parent behind our back, so its rate
+		 * is only trustworthy until the first set_rate.
+		 */
+		if (!clk->rate)
+			clk->rate = parent_rate;
+
+		return clk->rate;
+	}
 
 	return clk->handle->ops->dvfs.get_rate(clk->handle, clk->mbox_chan_id,
 					       clk->id);
@@ -107,9 +113,16 @@ static int acpm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 			     unsigned long parent_rate)
 {
 	struct acpm_clk *clk = to_acpm_clk(hw);
+	int ret;
 
-	return clk->handle->ops->dvfs.set_rate(clk->handle, clk->mbox_chan_id,
-					       clk->id, rate);
+	ret = clk->handle->ops->dvfs.set_rate(clk->handle, clk->mbox_chan_id,
+					      clk->id, rate);
+	if (ret)
+		return ret;
+
+	clk->rate = rate;
+
+	return 0;
 }
 
 static const struct clk_ops acpm_clk_ops = {
@@ -128,12 +141,11 @@ static int acpm_clk_register(struct device *dev, struct acpm_clk *aclk,
 	init.ops = &acpm_clk_ops;
 	aclk->hw.init = &init;
 
-	/* If get_rate is set, the SoC relies on parent topology */
-	if (drv_data->get_rate) {
+	/* If the rate is cached, its initial value comes from the parent */
+	if (drv_data->cache_rate) {
 		pdata.fw_name = name;
 		init.parent_data = &pdata;
 		init.num_parents = 1;
-		init.flags = CLK_GET_RATE_NOCACHE;
 	}
 
 	return devm_clk_hw_register(dev, &aclk->hw);
