@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/samsung/samsung,exynos850-mipi-dsi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos850 MIPI DSI master
+
+maintainers:
+  - Thomas Turner <tturner@lineageos.org>
+
+description: |
+  MIPI DSI master of the Exynos850 display subsystem, with its integrated
+  D-PHY. The D-PHY reset is controlled through the DPU system registers and
+  its isolation through the PMU.
+
+allOf:
+  - $ref: /schemas/display/dsi-controller.yaml#
+
+properties:
+  compatible:
+    const: samsung,exynos850-mipi-dsi
+
+  reg:
+    items:
+      - description: DSIM registers
+      - description: D-PHY registers
+
+  reg-names:
+    items:
+      - const: dsim
+      - const: phy
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: bus clock
+      - description: D-PHY PLL reference clock
+
+  clock-names:
+    items:
+      - const: bus
+      - const: pll
+
+  samsung,disp-sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: DPU system registers, used for the D-PHY reset
+
+  samsung,pmu-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: PMU, used for the D-PHY isolation
+
+  samsung,burst-clock-frequency:
+    description: DSI lane rate in Hz
+
+  samsung,esc-clock-frequency:
+    description: DSI escape clock frequency in Hz, between 7 and 20 MHz
+    minimum: 7000000
+    maximum: 20000000
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - clocks
+  - clock-names
+  - samsung,disp-sysreg
+  - samsung,pmu-syscon
+  - samsung,burst-clock-frequency
+  - samsung,esc-clock-frequency
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos850.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    dsi@13070000 {
+        compatible = "samsung,exynos850-mipi-dsi";
+        reg = <0x13070000 0x200>, <0x13080000 0x3000>;
+        reg-names = "dsim", "phy";
+        interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cmu_dpu CLK_DOUT_DPU_BUSP>, <&oscclk>;
+        clock-names = "bus", "pll";
+        samsung,disp-sysreg = <&sysreg_dpu>;
+        samsung,pmu-syscon = <&pmu_system_controller>;
+        samsung,burst-clock-frequency = <830000000>;
+        samsung,esc-clock-frequency = <20000000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };

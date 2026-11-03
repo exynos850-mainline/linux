@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/samsung/samsung,exynos850-decon.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos850 DECON display controller
+
+maintainers:
+  - Thomas Turner <tturner@lineageos.org>
+
+description: |
+  The DECON blends up to four windows and sends the result to the MIPI DSI
+  master. The windows are fetched from memory by the DPU_DMA block, whose
+  channels are driven together with the DECON.
+
+properties:
+  compatible:
+    const: samsung,exynos850-decon
+
+  reg:
+    items:
+      - description: DECON registers
+      - description: DPU_DMA registers, starting with the common block
+
+  reg-names:
+    items:
+      - const: decon
+      - const: dma
+
+  interrupts:
+    items:
+      - description: frame start
+      - description: frame done
+      - description: errors (timeout, resource conflict)
+
+  interrupt-names:
+    items:
+      - const: frame-start
+      - const: frame-done
+      - const: extra
+
+  clocks:
+    items:
+      - description: DECON bus clock
+      - description: DPU_DMA bus clock
+      - description: DPP bus clock
+      - description: PPMU bus clock
+      - description: PPMU register clock
+      - description: DPU SysMMU clock
+
+  clock-names:
+    items:
+      - const: aclk
+      - const: dma
+      - const: dpp
+      - const: ppmu-aclk
+      - const: ppmu-pclk
+      - const: smmu
+
+  iommus:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos850.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    display-controller@13060000 {
+        compatible = "samsung,exynos850-decon";
+        reg = <0x13060000 0x10000>, <0x130b0000 0x5000>;
+        reg-names = "decon", "dma";
+        interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "frame-start", "frame-done", "extra";
+        clocks = <&cmu_dpu CLK_GOUT_DPU_DECON0_ACLK>,
+                 <&cmu_dpu CLK_GOUT_DPU_DMA_ACLK>,
+                 <&cmu_dpu CLK_GOUT_DPU_DPP_ACLK>,
+                 <&cmu_dpu CLK_GOUT_DPU_PPMU_ACLK>,
+                 <&cmu_dpu CLK_GOUT_DPU_PPMU_PCLK>,
+                 <&cmu_dpu CLK_GOUT_DPU_SMMU_CLK>;
+        clock-names = "aclk", "dma", "dpp", "ppmu-aclk", "ppmu-pclk", "smmu";
+    };
