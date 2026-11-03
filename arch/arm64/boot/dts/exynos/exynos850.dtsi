@@ -942,6 +942,46 @@
 			clocks = <&cmu_cmgp CLK_GOUT_SYSREG_CMGP_PCLK>;
 		};
 
+		sysreg_dpu: syscon@13020000 {
+			compatible = "samsung,exynos850-dpu-sysreg",
+				     "samsung,exynos850-sysreg", "syscon";
+			reg = <0x13020000 0x10000>;
+			clocks = <&cmu_dpu CLK_GOUT_DPU_SYSREG_PCLK>;
+		};
+
+		decon: display-controller@13060000 {
+			compatible = "samsung,exynos850-decon";
+			reg = <0x13060000 0x10000>, <0x130b0000 0x5000>;
+			reg-names = "decon", "dma";
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "frame-start", "frame-done", "extra";
+			clocks = <&cmu_dpu CLK_GOUT_DPU_DECON0_ACLK>,
+				 <&cmu_dpu CLK_GOUT_DPU_DMA_ACLK>,
+				 <&cmu_dpu CLK_GOUT_DPU_DPP_ACLK>,
+				 <&cmu_dpu CLK_GOUT_DPU_PPMU_ACLK>,
+				 <&cmu_dpu CLK_GOUT_DPU_PPMU_PCLK>,
+				 <&cmu_dpu CLK_GOUT_DPU_SMMU_CLK>;
+			clock-names = "aclk", "dma", "dpp", "ppmu-aclk",
+				      "ppmu-pclk", "smmu";
+			status = "disabled";
+		};
+
+		dsi: dsi@13070000 {
+			compatible = "samsung,exynos850-mipi-dsi";
+			reg = <0x13070000 0x200>, <0x13080000 0x3000>;
+			reg-names = "dsim", "phy";
+			interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_dpu CLK_DOUT_DPU_BUSP>, <&oscclk>;
+			clock-names = "bus", "pll";
+			samsung,disp-sysreg = <&sysreg_dpu>;
+			samsung,pmu-syscon = <&pmu_system_controller>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		usbdrd: usb@13600000 {
 			compatible = "samsung,exynos850-dwusb3";
 			ranges = <0x0 0x13600000 0x10000>;
