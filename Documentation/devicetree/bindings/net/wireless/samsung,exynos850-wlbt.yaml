@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/wireless/samsung,exynos850-wlbt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos850 WLBT (Maxwell) Wi-Fi/Bluetooth subsystem
+
+maintainers:
+  - Thomas Turner <tturner@lineageos.org>
+
+description:
+  The WLBT subsystem integrated in the Exynos850 SoC contains the processors
+  running the Wi-Fi and Bluetooth firmware, which the host loads into a
+  reserved area of the DRAM. The host powers the subsystem up through the
+  PMU, configures the bus windows through which the subsystem sees the shared
+  memory and the mailboxes, and then communicates with the firmware through
+  the AP2WLBT mailbox and the shared memory.
+
+properties:
+  compatible:
+    const: samsung,exynos850-wlbt
+
+  reg:
+    items:
+      - description: AP2WLBT mailbox
+      - description: WLBT data bus address window (DBUS BAAW)
+      - description: WLBT peripheral bus address window (PBUS BAAW)
+      - description: WLBT remap configuration
+      - description: WLBT boot configuration
+      - description: APM PMIC interface (VGPIO monitor)
+
+  reg-names:
+    items:
+      - const: mbox
+      - const: dbus-baaw
+      - const: pbus-baaw
+      - const: remap
+      - const: boot-cfg
+      - const: apm-pmic
+
+  interrupts:
+    items:
+      - description: AP2WLBT mailbox interrupt
+      - description: WLBT watchdog / reset request
+      - description: WLBT configuration request (boot)
+
+  interrupt-names:
+    items:
+      - const: mbox
+      - const: wdog
+      - const: cfg-req
+
+  memory-region:
+    maxItems: 1
+    description:
+      Shared memory area holding the firmware and the host interface
+      structures, at least 12 MiB, 4 KiB aligned.
+
+  samsung,pmu-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the PMU system controller.
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - memory-region
+  - samsung,pmu-syscon
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    wifi@119c0000 {
+        compatible = "samsung,exynos850-wlbt";
+        reg = <0x119c0000 0x180>,
+              <0x14c20000 0x300>,
+              <0x14c30000 0x300>,
+              <0x14c50000 0x500>,
+              <0x14c60000 0x1200>,
+              <0x11a50000 0x1800>;
+        reg-names = "mbox", "dbus-baaw", "pbus-baaw", "remap", "boot-cfg",
+                    "apm-pmic";
+        interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "mbox", "wdog", "cfg-req";
+        memory-region = <&wlbt_mem>;
+        samsung,pmu-syscon = <&pmu_system_controller>;
+    };
