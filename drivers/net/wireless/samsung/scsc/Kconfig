@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SCSC_WLBT
+	tristate "Samsung SCSC Maxwell WLBT core"
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on ARM64 && OF
+	select MFD_SYSCON
+	select FW_LOADER
+	help
+	  Core support for the Samsung "Maxwell" Wi-Fi/Bluetooth subsystem
+	  integrated in Exynos SoCs such as the Exynos850. It powers up the
+	  WLBT block through the PMU, loads its firmware into the shared
+	  memory area and provides the mailbox transport used by the
+	  service drivers.
+
+config SCSC_WLAN
+	tristate "Samsung SCSC Maxwell Wi-Fi driver"
+	depends on SCSC_WLBT && CFG80211
+	help
+	  cfg80211 driver for the Wi-Fi part of the Samsung "Maxwell" WLBT
+	  subsystem.
