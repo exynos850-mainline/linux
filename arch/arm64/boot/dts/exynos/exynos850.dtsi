@@ -614,6 +614,24 @@
 			#mbox-cells = <0>;
 		};
 
+		wlbt: wifi@119c0000 {
+			compatible = "samsung,exynos850-wlbt";
+			reg = <0x119c0000 0x180>,
+			      <0x14c20000 0x300>,
+			      <0x14c30000 0x300>,
+			      <0x14c50000 0x500>,
+			      <0x14c60000 0x1200>,
+			      <0x11a50000 0x1800>;
+			reg-names = "mbox", "dbus-baaw", "pbus-baaw", "remap",
+				    "boot-cfg", "apm-pmic";
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mbox", "wdog", "cfg-req";
+			samsung,pmu-syscon = <&pmu_system_controller>;
+			status = "disabled";
+		};
+
 		cmu_cmgp: clock-controller@11c00000 {
 			compatible = "samsung,exynos850-cmu-cmgp";
 			reg = <0x11c00000 0x8000>;
