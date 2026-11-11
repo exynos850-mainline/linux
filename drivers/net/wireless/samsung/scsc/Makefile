@@ -53,3 +53,9 @@ scsc_wlan-y := \
 	wlan/scsc_wifi_fcq.o \
 	wlan/traffic_monitor.o \
 	wlan/tx.o
+
+obj-$(CONFIG_SCSC_BT) += scsc_bt.o
+scsc_bt-y := \
+	bt/scsc_avdtp_detect.o \
+	bt/scsc_bt_module.o \
+	bt/scsc_shm.o

@@ -18,3 +18,10 @@ config SCSC_WLAN
 	help
 	  cfg80211 driver for the Wi-Fi part of the Samsung "Maxwell" WLBT
 	  subsystem.
+
+config SCSC_BT
+	tristate "Samsung SCSC Maxwell Bluetooth driver"
+	depends on SCSC_WLBT && BT
+	help
+	  Bluetooth HCI driver for the Bluetooth part of the Samsung
+	  "Maxwell" WLBT subsystem.

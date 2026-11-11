@@ -210,6 +210,7 @@ typedef void (*scsc_mifintrbit_handler)(int which_bit, void *data);
  * Core Module Inteface
  */
 int scsc_mx_module_register_client_module(struct scsc_mx_module_client *module_client);
+struct device *scsc_mx_get_device(struct scsc_mx *mx);
 void scsc_mx_module_unregister_client_module(struct scsc_mx_module_client *module_client);
 int scsc_mx_module_reset(void);
 
