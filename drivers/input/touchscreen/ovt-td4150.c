@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Omnivision TD4150 touchscreen
+ * Driver for the touch controller of the Synaptics (now OmniVision) TD4150
+ * TDDI chip, talking the Synaptics TouchComm (TCM) protocol over SPI.
+ *
+ * The controller has no flash for its application firmware ("zeroflash").
+ * It comes up from every power on or reset in its ROM bootloader, and the
+ * host has to download the application firmware before it reports touches.
  */
 
 #include <linux/completion.h>
@@ -21,6 +26,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
+#include <linux/unaligned.h>
 
 /* TCM protocol definitions */
 
@@ -39,8 +45,7 @@
 #define TCM_MODE_SWITCH_DELAY_MS	200
 #define TCM_POWER_ON_DELAY_US		10000	/* rail settling time before reset */
 
-/* Firmware image is loaded from /lib/firmware/<this name>, */
-#define TS_FIRMWARE_PATH		"td4375_a13_boe.bin" /* TODO: let something in like the device tree set this,
+#define TCM_DEFAULT_FIRMWARE		"td4375_a13_boe.bin"
 
 /* vendor TCM firmware image container format (image_header + N area
  * descriptors, each pointing at a named, CRC32-checked data blob)
@@ -91,9 +96,11 @@ enum tcm_mode {
 	TCM_MODE_TDDI_BOOTLOADER		= 0x0c,
 };
 
-#define TCM_IS_FW_MODE(mode) \
-	((mode) == TCM_MODE_APPLICATION_FIRMWARE || \
-	 (mode) == TCM_MODE_HOSTDOWNLOAD_FIRMWARE)
+static bool tcm_is_fw_mode(u8 mode)
+{
+	return mode == TCM_MODE_APPLICATION_FIRMWARE ||
+	       mode == TCM_MODE_HOSTDOWNLOAD_FIRMWARE;
+}
 
 enum tcm_command_status {
 	TCM_CMD_STATUS_IDLE	= 0,
@@ -186,8 +193,18 @@ struct tcm_object_data {
 struct ovt_tcm_data {
 	struct spi_device *spi;
 	struct input_dev *input_dev;
+	/* re-initializes the controller after it reset by itself */
+	struct work_struct reset_work;
+	bool ready;
+	/*
+	 * CMD_ROMBOOT_DOWNLOAD payload, kept for later downloads: the image
+	 * may only be reachable early in boot, from an initramfs
+	 */
+	u8 *fw_payload;
+	unsigned int fw_payload_len;
 	struct touchscreen_properties props;
 	struct gpio_desc *reset_gpio;
+	const char *firmware_name;
 
 	/* digital core supply, host interface supply - real regulators or
 	 * the core's dummy regulator, see ovt_tcm_power_on()
@@ -235,24 +252,13 @@ struct ovt_tcm_data {
 	struct tcm_object_data objects[TCM_MAX_OBJECTS];
 };
 
-static inline unsigned int le2_to_uint(const u8 *src)
-{
-	return (unsigned int)src[0] | ((unsigned int)src[1] << 8);
-}
-
-static inline unsigned int le4_to_uint(const u8 *src)
-{
-	return (unsigned int)src[0] | ((unsigned int)src[1] << 8) |
-	       ((unsigned int)src[2] << 16) | ((unsigned int)src[3] << 24);
-}
-
-/* ------------------------------------------------------------------
+/*
  * Raw SPI byte transport
  *
  * The TCM SPI protocol is a plain full-duplex byte stream: to read N
  * bytes the host clocks out N filler 0xff bytes while capturing MISO;
  * to write N bytes the host just clocks them out.
- * ------------------------------------------------------------------ */
+ */
 
 static int ovt_tcm_spi_read(struct ovt_tcm_data *ts, void *buf, size_t len)
 {
@@ -284,9 +290,9 @@ static int ovt_tcm_spi_write(struct ovt_tcm_data *ts, const void *buf, size_t le
 	return spi_write(ts->spi, buf, len);
 }
 
-/* ------------------------------------------------------------------
+/*
  * TCM message layer
- * ------------------------------------------------------------------ */
+ */
 
 static int ovt_tcm_ensure_in_buf(struct ovt_tcm_data *ts, unsigned int size)
 {
@@ -355,6 +361,18 @@ static void ovt_tcm_dispatch_message(struct ovt_tcm_data *ts)
 
 		dev_dbg(&ts->spi->dev, "identify report, mode=0x%02x\n",
 			ts->id_info.mode);
+
+		/*
+		 * An identify report outside of a command means the controller
+		 * reset, for example because the display side of the chip was
+		 * powered down. It is back in its ROM bootloader without the
+		 * application firmware.
+		 */
+		if (ts->command_status != TCM_CMD_STATUS_BUSY && ts->ready) {
+			ts->ready = false;
+			schedule_work(&ts->reset_work);
+			return;
+		}
 
 		if (ts->command_status == TCM_CMD_STATUS_BUSY) {
 			if (ts->command == TCM_CMD_RESET ||
@@ -466,7 +484,7 @@ static int ovt_tcm_read_message(struct ovt_tcm_data *ts)
 	}
 
 	ts->status_report_code = header->code;
-	ts->payload_length = le2_to_uint(header->length);
+	ts->payload_length = get_unaligned_le16(header->length);
 
 	if (ts->status_report_code <= TCM_STATUS_ERROR ||
 	    ts->status_report_code == TCM_STATUS_INVALID) {
@@ -519,7 +537,7 @@ static int ovt_tcm_read_message(struct ovt_tcm_data *ts)
 
 	/* predictive read sizing for next time */
 	ts->read_length = clamp(total_length, (unsigned int)TCM_MIN_READ_LEN,
-				 (unsigned int)TCM_MAX_READ_LEN);
+				(unsigned int)TCM_MAX_READ_LEN);
 
 	ovt_tcm_dispatch_message(ts);
 	ret = 0;
@@ -542,7 +560,7 @@ out:
  * stays valid only until the next call to this function.
  */
 static int ovt_tcm_write_message(struct ovt_tcm_data *ts, u8 command,
-				  const u8 *payload, unsigned int length,
+				 const u8 *payload, unsigned int length,
 				  u8 **resp, unsigned int *resp_len)
 {
 	unsigned int remaining = length + 2;
@@ -614,7 +632,7 @@ static int ovt_tcm_write_message(struct ovt_tcm_data *ts, u8 command,
 	mutex_unlock(&ts->rw_lock);
 
 	ret = wait_for_completion_timeout(&ts->response_done,
-			msecs_to_jiffies(timeout_ms));
+					  msecs_to_jiffies(timeout_ms));
 	if (!ret) {
 		dev_err(&ts->spi->dev,
 			"timed out waiting for response to command 0x%02x\n",
@@ -653,17 +671,17 @@ unlock:
 	return ret;
 }
 
-/* ------------------------------------------------------------------
+/*
  * Touch report parsing
  *
  * The firmware describes its own report layout as a small bytecode
  * (fetched once via CMD_GET_TOUCH_REPORT_CONFIG) that we walk bit by bit
  * against each incoming REPORT_TOUCH payload. This lets the same parser
  * handle whatever fields+order the particular firmware build emits.
- * ------------------------------------------------------------------ */
+ */
 
 static int tcm_get_report_bits(const u8 *report, unsigned int report_len,
-				unsigned int offset, unsigned int bits,
+			       unsigned int offset, unsigned int bits,
 				unsigned int *out)
 {
 	unsigned int byte_off, bit_off, avail, take, got = 0, val = 0;
@@ -834,9 +852,9 @@ static void ovt_tcm_report_touch(struct ovt_tcm_data *ts)
 		    obj->status == TCM_OBJECT_GLOVED_FINGER) {
 			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
 			touchscreen_report_pos(ts->input_dev, &ts->props,
-						obj->x, obj->y, true);
+					       obj->x, obj->y, true);
 			input_report_abs(ts->input_dev, ABS_MT_PRESSURE,
-					  obj->z ?: 1);
+					 obj->z ?: 1);
 		} else {
 			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
 		}
@@ -846,9 +864,9 @@ static void ovt_tcm_report_touch(struct ovt_tcm_data *ts)
 	input_sync(ts->input_dev);
 }
 
-/* ------------------------------------------------------------------
+/*
  * Controller bring-up
- * ------------------------------------------------------------------ */
+ */
 
 static void ovt_tcm_hw_reset(struct ovt_tcm_data *ts)
 {
@@ -862,17 +880,8 @@ static void ovt_tcm_hw_reset(struct ovt_tcm_data *ts)
 }
 
 /*
- * Bring up the controller's power rails. Both vdd (digital core) and vddio
- * (host interface level shifter / pull-ups) are fetched with a plain
- * devm_regulator_get(), the same pattern panfrost uses for its "mali"
- * supply: if the board's DT doesn't define vdd-supply/vddio-supply at all,
- * the regulator core transparently substitutes its always-on dummy
- * regulator (requires CONFIG_REGULATOR_DUMMY) instead of erroring out, so
- * boards where these LDOs are latched on by the bootloader (e.g. uniLoader
- * on Exynos) and never described as controllable regulators just work with
- * no special-casing here. If vdd-supply *is* present in DT but its
- * provider can't probe (e.g. stuck behind an ACPM mailbox), this still
- * correctly returns -EPROBE_DEFER instead of masking the problem.
+ * Both supplies are optional: without them in DT the regulator core hands
+ * out dummy regulators, for boards where the bootloader leaves them on.
  */
 static int ovt_tcm_power_on(struct ovt_tcm_data *ts)
 {
@@ -928,7 +937,7 @@ static int ovt_tcm_identify(struct ovt_tcm_data *ts)
 
 	memcpy(&ts->id_info, resp, min_t(unsigned int, sizeof(ts->id_info), resp_len));
 
-	max_write_size = le2_to_uint(ts->id_info.max_write_size);
+	max_write_size = get_unaligned_le16(ts->id_info.max_write_size);
 	ts->wr_chunk_size = min_t(unsigned int, max_write_size, TCM_WR_CHUNK_SIZE);
 	if (!ts->wr_chunk_size)
 		ts->wr_chunk_size = max_write_size;
@@ -943,15 +952,15 @@ static int ovt_tcm_get_app_info(struct ovt_tcm_data *ts)
 	int ret;
 
 	ret = ovt_tcm_write_message(ts, TCM_CMD_GET_APPLICATION_INFO, NULL, 0,
-				     &resp, &resp_len);
+				    &resp, &resp_len);
 	if (ret)
 		return ret;
 
 	memcpy(&ts->app_info, resp, min_t(unsigned int, sizeof(ts->app_info), resp_len));
 
-	ts->max_x = le2_to_uint(ts->app_info.max_x);
-	ts->max_y = le2_to_uint(ts->app_info.max_y);
-	ts->max_objects = le2_to_uint(ts->app_info.max_objects);
+	ts->max_x = get_unaligned_le16(ts->app_info.max_x);
+	ts->max_y = get_unaligned_le16(ts->app_info.max_y);
+	ts->max_objects = get_unaligned_le16(ts->app_info.max_objects);
 	if (ts->max_objects > TCM_MAX_OBJECTS)
 		ts->max_objects = TCM_MAX_OBJECTS;
 
@@ -971,7 +980,7 @@ static int ovt_tcm_get_report_config(struct ovt_tcm_data *ts)
 	int ret;
 
 	ret = ovt_tcm_write_message(ts, TCM_CMD_GET_TOUCH_REPORT_CONFIG, NULL, 0,
-				     &resp, &resp_len);
+				    &resp, &resp_len);
 	if (ret)
 		return ret;
 
@@ -988,22 +997,23 @@ static int ovt_tcm_get_report_config(struct ovt_tcm_data *ts)
 	return 0;
 }
 
-/* ------------------------------------------------------------------
+/*
  * ROM-bootloader firmware download (zeroflash)
  *
  * This controller has no persistent flash for application firmware - see
  * the file header comment. On every cold boot it comes up in
  * TCM_MODE_ROMBOOTLOADER and must be pushed a firmware image before
  * application mode exists at all.
- * ------------------------------------------------------------------ */
+ */
 
 /*
  * Walk the vendor firmware image container (image_header + N area
  * descriptors) looking for the ROMBOOT_APP_CODE area, verifying its CRC32,
  * and returning a pointer/length into the caller's buffer (no copy).
  */
-static int ovt_tcm_find_romboot_fw(const u8 *image, size_t image_size,
-				    const u8 **out_data, unsigned int *out_len)
+static int ovt_tcm_find_romboot_fw(struct device *dev, const u8 *image,
+				   size_t image_size, const u8 **out_data,
+				   unsigned int *out_len)
 {
 	const struct tcm_fw_image_header *header;
 	unsigned int num_areas, i, offset;
@@ -1012,12 +1022,12 @@ static int ovt_tcm_find_romboot_fw(const u8 *image, size_t image_size,
 		return -EINVAL;
 
 	header = (const struct tcm_fw_image_header *)image;
-	if (le4_to_uint(header->magic_value) != TCM_FW_IMAGE_MAGIC) {
-		pr_err("ovt-td4150: bad firmware image magic\n");
+	if (get_unaligned_le32(header->magic_value) != TCM_FW_IMAGE_MAGIC) {
+		dev_err(dev, "bad firmware image magic\n");
 		return -EINVAL;
 	}
 
-	num_areas = le4_to_uint(header->num_of_areas);
+	num_areas = get_unaligned_le32(header->num_of_areas);
 	offset = sizeof(*header);
 
 	for (i = 0; i < num_areas; i++) {
@@ -1028,30 +1038,30 @@ static int ovt_tcm_find_romboot_fw(const u8 *image, size_t image_size,
 
 		if ((u64)offset + 4 > image_size)
 			return -EINVAL;
-		addr = le4_to_uint(image + offset);
+		addr = get_unaligned_le32(image + offset);
 		offset += 4;
 
 		if ((u64)addr + sizeof(*desc) > image_size)
 			continue;
 		desc = (const struct tcm_fw_area_descriptor *)(image + addr);
 
-		if (le4_to_uint(desc->magic_value) != TCM_FW_AREA_MAGIC)
+		if (get_unaligned_le32(desc->magic_value) != TCM_FW_AREA_MAGIC)
 			continue;
 
 		if (strncmp((const char *)desc->id_string, TCM_FW_ROMBOOT_APP_ID,
 			    strlen(TCM_FW_ROMBOOT_APP_ID)) != 0)
 			continue;
 
-		length = le4_to_uint(desc->length);
+		length = get_unaligned_le32(desc->length);
 		content = (const u8 *)desc + sizeof(*desc);
 
 		if ((u64)addr + sizeof(*desc) + length > image_size)
 			return -EINVAL;
 
-		want_crc = le4_to_uint(desc->checksum);
+		want_crc = get_unaligned_le32(desc->checksum);
 		crc = crc32(~0, content, length) ^ ~0;
 		if (crc != want_crc) {
-			pr_err("ovt-td4150: firmware area checksum mismatch\n");
+			dev_err(dev, "firmware area checksum mismatch\n");
 			return -EINVAL;
 		}
 
@@ -1063,33 +1073,33 @@ static int ovt_tcm_find_romboot_fw(const u8 *image, size_t image_size,
 	return -ENOENT;
 }
 
-static int ovt_tcm_romboot_download(struct ovt_tcm_data *ts)
+static int ovt_tcm_load_fw_payload(struct ovt_tcm_data *ts)
 {
 	const struct firmware *fw;
 	const u8 *fw_data;
 	unsigned int fw_len;
-	unsigned int out_len;
 	u8 *out;
-	u8 *resp;
-	unsigned int resp_len;
 	int ret;
 
-	ret = request_firmware(&fw, TS_FIRMWARE_PATH, &ts->spi->dev);
+	if (ts->fw_payload)
+		return 0;
+
+	ret = request_firmware(&fw, ts->firmware_name, &ts->spi->dev);
 	if (ret) {
-		dev_err(&ts->spi->dev, "failed to load /lib/firmware/%s: %d\n",
-			TS_FIRMWARE_PATH, ret);
+		dev_err(&ts->spi->dev, "failed to load %s: %d\n",
+			ts->firmware_name, ret);
 		return ret;
 	}
 
-	ret = ovt_tcm_find_romboot_fw(fw->data, fw->size, &fw_data, &fw_len);
+	ret = ovt_tcm_find_romboot_fw(&ts->spi->dev, fw->data, fw->size,
+				      &fw_data, &fw_len);
 	if (ret) {
 		dev_err(&ts->spi->dev,
 			"failed to find ROMBOOT_APP_CODE in firmware image: %d\n", ret);
 		goto out_release;
 	}
 
-	out_len = TCM_FW_RESERVED_BYTES + fw_len;
-	out = kvzalloc(out_len, GFP_KERNEL);
+	out = kvzalloc(TCM_FW_RESERVED_BYTES + fw_len, GFP_KERNEL);
 	if (!out) {
 		ret = -ENOMEM;
 		goto out_release;
@@ -1101,30 +1111,46 @@ static int ovt_tcm_romboot_download(struct ovt_tcm_data *ts)
 	out[0] = (u8)(fw_len >> 16);
 	memcpy(out + TCM_FW_RESERVED_BYTES, fw_data, fw_len);
 
-	dev_info(&ts->spi->dev, "downloading %u byte application firmware\n", fw_len);
-
-	ret = ovt_tcm_write_message(ts, TCM_CMD_ROMBOOT_DOWNLOAD, out, out_len,
-				     &resp, &resp_len);
-	kvfree(out);
-	if (ret) {
-		dev_err(&ts->spi->dev, "firmware download failed: %d\n", ret);
-		goto out_release;
-	}
-
-	ret = ovt_tcm_write_message(ts, TCM_CMD_ROMBOOT_RUN_BOOTLOADER_FIRMWARE,
-				     NULL, 0, &resp, &resp_len);
-	if (ret) {
-		dev_err(&ts->spi->dev,
-			"failed to run downloaded bootloader firmware: %d\n", ret);
-		goto out_release;
-	}
-
-	msleep(TCM_MODE_SWITCH_DELAY_MS);
-	ret = 0;
+	ts->fw_payload = out;
+	ts->fw_payload_len = TCM_FW_RESERVED_BYTES + fw_len;
 
 out_release:
 	release_firmware(fw);
 	return ret;
+}
+
+static int ovt_tcm_romboot_download(struct ovt_tcm_data *ts)
+{
+	u8 *resp;
+	unsigned int resp_len;
+	int ret;
+
+	ret = ovt_tcm_load_fw_payload(ts);
+	if (ret)
+		return ret;
+
+	dev_info(&ts->spi->dev, "downloading %u byte application firmware\n",
+		 ts->fw_payload_len - TCM_FW_RESERVED_BYTES);
+
+	ret = ovt_tcm_write_message(ts, TCM_CMD_ROMBOOT_DOWNLOAD,
+				    ts->fw_payload, ts->fw_payload_len,
+				    &resp, &resp_len);
+	if (ret) {
+		dev_err(&ts->spi->dev, "firmware download failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = ovt_tcm_write_message(ts, TCM_CMD_ROMBOOT_RUN_BOOTLOADER_FIRMWARE,
+				    NULL, 0, &resp, &resp_len);
+	if (ret) {
+		dev_err(&ts->spi->dev,
+			"failed to run downloaded bootloader firmware: %d\n", ret);
+		return ret;
+	}
+
+	msleep(TCM_MODE_SWITCH_DELAY_MS);
+
+	return 0;
 }
 
 static int ovt_tcm_init_device(struct ovt_tcm_data *ts)
@@ -1152,7 +1178,7 @@ static int ovt_tcm_init_device(struct ovt_tcm_data *ts)
 			return ret;
 	}
 
-	if (!TCM_IS_FW_MODE(ts->id_info.mode)) {
+	if (!tcm_is_fw_mode(ts->id_info.mode)) {
 		/*
 		 * Controller is in some other bootloader mode (not ROM
 		 * bootloader) - the firmware may already be resident and
@@ -1163,7 +1189,7 @@ static int ovt_tcm_init_device(struct ovt_tcm_data *ts)
 			 ts->id_info.mode);
 
 		ret = ovt_tcm_write_message(ts, TCM_CMD_RUN_APPLICATION_FIRMWARE,
-					     NULL, 0, &resp, &resp_len);
+					    NULL, 0, &resp, &resp_len);
 		if (ret)
 			return ret;
 
@@ -1173,7 +1199,7 @@ static int ovt_tcm_init_device(struct ovt_tcm_data *ts)
 		if (ret)
 			return ret;
 
-		if (!TCM_IS_FW_MODE(ts->id_info.mode)) {
+		if (!tcm_is_fw_mode(ts->id_info.mode)) {
 			dev_err(&ts->spi->dev,
 				"controller stuck in mode 0x%02x after firmware download\n",
 				ts->id_info.mode);
@@ -1192,7 +1218,7 @@ static int ovt_tcm_init_device(struct ovt_tcm_data *ts)
 	dev_info(&ts->spi->dev,
 		 "TD4150 ready: %ux%u, %u objects, fw build %u\n",
 		 ts->max_x, ts->max_y, ts->max_objects,
-		 le4_to_uint(ts->id_info.build_id));
+		 get_unaligned_le32(ts->id_info.build_id));
 
 	return 0;
 }
@@ -1206,7 +1232,7 @@ static int ovt_tcm_input_init(struct ovt_tcm_data *ts)
 	if (!input)
 		return -ENOMEM;
 
-	input->name = "Omnivision TD4150 Touchscreen";
+	input->name = "Synaptics TD4150 Touchscreen";
 	input->id.bustype = BUS_SPI;
 	input->dev.parent = &ts->spi->dev;
 
@@ -1217,7 +1243,7 @@ static int ovt_tcm_input_init(struct ovt_tcm_data *ts)
 	touchscreen_parse_properties(input, true, &ts->props);
 
 	ret = input_mt_init_slots(input, ts->max_objects,
-				   INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
+				  INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
 	if (ret)
 		return ret;
 
@@ -1239,9 +1265,65 @@ static irqreturn_t ovt_tcm_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* ------------------------------------------------------------------
+/*
  * Probe / remove / power management
- * ------------------------------------------------------------------ */
+ */
+
+static void ovt_tcm_release_slots(struct ovt_tcm_data *ts)
+{
+	unsigned int i;
+
+	for (i = 0; i < ts->max_objects; i++) {
+		input_mt_slot(ts->input_dev, i);
+		input_mt_report_slot_inactive(ts->input_dev);
+	}
+	input_mt_sync_frame(ts->input_dev);
+	input_sync(ts->input_dev);
+}
+
+static void ovt_tcm_reset_work(struct work_struct *work)
+{
+	struct ovt_tcm_data *ts = container_of(work, struct ovt_tcm_data,
+					       reset_work);
+	int ret;
+
+	dev_info(&ts->spi->dev, "controller reset, reinitializing\n");
+
+	/* Touches in progress were lost with the reset */
+	if (ts->input_dev)
+		ovt_tcm_release_slots(ts);
+
+	ret = ovt_tcm_init_device(ts);
+	if (ret) {
+		dev_err(&ts->spi->dev, "failed to reinitialize controller: %d\n",
+			ret);
+		return;
+	}
+
+	ts->ready = true;
+}
+
+static void ovt_tcm_cancel_reset_work(void *data)
+{
+	struct ovt_tcm_data *ts = data;
+
+	cancel_work_sync(&ts->reset_work);
+}
+
+static void ovt_tcm_free_buffers(void *data)
+{
+	struct ovt_tcm_data *ts = data;
+
+	kvfree(ts->fw_payload);
+	kfree(ts->report_config);
+	kfree(ts->resp_buf);
+	kfree(ts->in_buf);
+}
+
+static void ovt_tcm_power_off_action(void *data)
+{
+	ovt_tcm_power_off(data);
+}
 
 static int ovt_tcm_probe(struct spi_device *spi)
 {
@@ -1249,10 +1331,12 @@ static int ovt_tcm_probe(struct spi_device *spi)
 	struct ovt_tcm_data *ts;
 	int ret;
 
-	if (spi->controller->flags & SPI_CONTROLLER_HALF_DUPLEX) {
-		dev_err(dev, "full-duplex SPI controller required\n");
-		return -EINVAL;
-	}
+	if (spi->controller->flags & SPI_CONTROLLER_HALF_DUPLEX)
+		return dev_err_probe(dev, -EINVAL,
+				     "full-duplex SPI controller required\n");
+
+	if (spi->irq <= 0)
+		return dev_err_probe(dev, -EINVAL, "no usable interrupt\n");
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
@@ -1261,16 +1345,12 @@ static int ovt_tcm_probe(struct spi_device *spi)
 	ts->spi = spi;
 	spi_set_drvdata(spi, ts);
 
-	spi->bits_per_word = 8;
-	if (!spi->mode)
-		spi->mode = SPI_MODE_0;
-	ret = spi_setup(spi);
-	if (ret)
-		return dev_err_probe(dev, ret, "spi_setup failed\n");
-
 	mutex_init(&ts->command_lock);
 	mutex_init(&ts->rw_lock);
 	init_completion(&ts->response_done);
+
+	ts->firmware_name = TCM_DEFAULT_FIRMWARE;
+	device_property_read_string(dev, "firmware-name", &ts->firmware_name);
 
 	ts->read_length = TCM_MIN_READ_LEN;
 	ts->in_buf_size = TCM_MIN_READ_LEN;
@@ -1278,82 +1358,63 @@ static int ovt_tcm_probe(struct spi_device *spi)
 	if (!ts->in_buf)
 		return -ENOMEM;
 
+	/* The buffers grow with krealloc(), so they can't be devm allocated */
+	ret = devm_add_action_or_reset(dev, ovt_tcm_free_buffers, ts);
+	if (ret)
+		return ret;
+
 	ts->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(ts->reset_gpio)) {
-		ret = dev_err_probe(dev, PTR_ERR(ts->reset_gpio),
+	if (IS_ERR(ts->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(ts->reset_gpio),
 				     "failed to get reset gpio\n");
-		goto err_free_buf;
-	}
 
 	ts->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(ts->vdd)) {
-		ret = dev_err_probe(dev, PTR_ERR(ts->vdd),
-				     "failed to get vdd-supply\n");
-		goto err_free_buf;
-	}
+	if (IS_ERR(ts->vdd))
+		return dev_err_probe(dev, PTR_ERR(ts->vdd),
+				     "failed to get vdd supply\n");
 
 	ts->vddio = devm_regulator_get(dev, "vddio");
-	if (IS_ERR(ts->vddio)) {
-		ret = dev_err_probe(dev, PTR_ERR(ts->vddio),
-				     "failed to get vddio-supply\n");
-		goto err_free_buf;
-	}
-
-	if (spi->irq <= 0) {
-		dev_err(dev, "no usable interrupt\n");
-		ret = -EINVAL;
-		goto err_free_buf;
-	}
+	if (IS_ERR(ts->vddio))
+		return dev_err_probe(dev, PTR_ERR(ts->vddio),
+				     "failed to get vddio supply\n");
 
 	ret = ovt_tcm_power_on(ts);
-	if (ret) {
-		dev_err_probe(dev, ret, "failed to power on controller\n");
-		goto err_free_buf;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to power on controller\n");
 
+	ret = devm_add_action_or_reset(dev, ovt_tcm_power_off_action, ts);
+	if (ret)
+		return ret;
+
+	/* The interrupt schedules the work, so cancel it once that is gone */
+	INIT_WORK(&ts->reset_work, ovt_tcm_reset_work);
+	ret = devm_add_action_or_reset(dev, ovt_tcm_cancel_reset_work, ts);
+	if (ret)
+		return ret;
+
+	/* Responses to commands arrive through the interrupt too */
 	ret = devm_request_threaded_irq(dev, spi->irq, NULL, ovt_tcm_irq_thread,
-					 IRQF_ONESHOT, "ovt-tcm", ts);
-	if (ret) {
-		dev_err_probe(dev, ret, "failed to request irq\n");
-		goto err_power_off;
-	}
+					IRQF_ONESHOT, "ovt-tcm", ts);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to request irq\n");
 
 	ret = ovt_tcm_init_device(ts);
-	if (ret) {
-		dev_err_probe(dev, ret, "failed to initialize controller\n");
-		goto err_power_off;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to initialize controller\n");
 
 	ret = ovt_tcm_input_init(ts);
-	if (ret) {
-		dev_err_probe(dev, ret, "failed to register input device\n");
-		goto err_power_off;
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register input device\n");
+
+	if (device_property_read_bool(dev, "wakeup-source")) {
+		ret = devm_device_init_wakeup(dev);
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to init wakeup\n");
 	}
 
-	device_init_wakeup(dev, true);
+	ts->ready = true;
 
 	return 0;
-
-err_power_off:
-	ovt_tcm_power_off(ts);
-err_free_buf:
-	kfree(ts->report_config);
-	kfree(ts->resp_buf);
-	kfree(ts->in_buf);
-	return ret;
-}
-
-static void ovt_tcm_remove(struct spi_device *spi)
-{
-	struct ovt_tcm_data *ts = spi_get_drvdata(spi);
-
-	device_init_wakeup(&spi->dev, false);
-
-	ovt_tcm_power_off(ts);
-
-	kfree(ts->report_config);
-	kfree(ts->resp_buf);
-	kfree(ts->in_buf);
 }
 
 static int ovt_tcm_suspend(struct device *dev)
@@ -1370,11 +1431,13 @@ static int ovt_tcm_suspend(struct device *dev)
 
 	/* best-effort: quiesce the scan engine before cutting power */
 	ret = ovt_tcm_write_message(ts, TCM_CMD_ENTER_DEEP_SLEEP, NULL, 0,
-				     &resp, &resp_len);
+				    &resp, &resp_len);
 	if (ret)
 		dev_warn(dev, "failed to enter deep sleep: %d\n", ret);
 
+	ts->ready = false;
 	disable_irq(ts->spi->irq);
+	cancel_work_sync(&ts->reset_work);
 	ovt_tcm_power_off(ts);
 
 	return 0;
@@ -1407,13 +1470,15 @@ static int ovt_tcm_resume(struct device *dev)
 		return ret;
 	}
 
+	ts->ready = true;
+
 	return 0;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(ovt_tcm_pm_ops, ovt_tcm_suspend, ovt_tcm_resume);
 
 static const struct spi_device_id ovt_tcm_spi_id[] = {
-	{ "td4150", 0 },
+	{ "td4150" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ovt_tcm_spi_id);
@@ -1431,12 +1496,11 @@ static struct spi_driver ovt_tcm_spi_driver = {
 		.pm = pm_sleep_ptr(&ovt_tcm_pm_ops),
 	},
 	.probe = ovt_tcm_probe,
-	.remove = ovt_tcm_remove,
 	.id_table = ovt_tcm_spi_id,
 };
 module_spi_driver(ovt_tcm_spi_driver);
 
 MODULE_AUTHOR("schoosh212");
-MODULE_DESCRIPTION("Omnivision TD4150 touchscreen driver");
-MODULE_FIRMWARE(TS_FIRMWARE_PATH);
+MODULE_DESCRIPTION("Synaptics TD4150 touchscreen driver");
+MODULE_FIRMWARE(TCM_DEFAULT_FIRMWARE);
 MODULE_LICENSE("GPL");
