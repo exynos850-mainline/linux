@@ -454,6 +454,48 @@
 		      "dout_hsi_mmc_card", "dout_hsi_usb20drd";
 };
 
+&decon {
+	status = "okay";
+};
+
+&dsi {
+	samsung,burst-clock-frequency = <1125000000>;
+	samsung,esc-clock-frequency = <20000000>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "syna,td4375-panel";
+		reg = <0>;
+
+		/*
+		 * TODO: Add vsn-supply, vsp-supply and backlight-gpios
+		 * (gpg2 1) once the LM36274 bias and backlight driver is
+		 * described. Until then these keep the configuration of
+		 * the bootloader. Downstream drives vsp from gpm6 0 and
+		 * vsn from gpg3 0.
+		 */
+		vio-supply = <&vdd_ldo28>;
+		reset-gpios = <&gpg2 4 GPIO_ACTIVE_LOW>;
+
+		width-mm = <68>;
+		height-mm = <153>;
+
+		panel-timing {
+			clock-frequency = <176537280>;
+
+			hactive = <1080>;
+			hfront-porch = <72>;
+			hsync-len = <4>;
+			hback-porch = <42>;
+
+			vactive = <2408>;
+			vfront-porch = <30>;
+			vsync-len = <8>;
+			vback-porch = <10>;
+		};
+	};
+};
+
 &gpu {
         mali-supply = <&vdd_buck2>;
 
