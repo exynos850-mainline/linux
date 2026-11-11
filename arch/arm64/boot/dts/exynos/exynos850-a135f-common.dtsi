@@ -469,43 +469,6 @@
 	status = "okay";
 };
 
-&dsi {
-	samsung,burst-clock-frequency = <830000000>;
-	samsung,esc-clock-frequency = <20000000>;
-	status = "okay";
-
-	panel@0 {
-		compatible = "boe,td4375";
-		reg = <0>;
-
-		/*
-		 * TODO: Add vsn-supply, vsp-supply and backlight-gpios
-		 * (gpg2 1) once the LM36274 bias and backlight driver is
-		 * described. Until then these keep the configuration of
-		 * the bootloader.
-		 */
-		vio-supply = <&vdd_ldo28>;
-		reset-gpios = <&gpg2 4 GPIO_ACTIVE_LOW>;
-
-		width-mm = <68>;
-		height-mm = <153>;
-
-		panel-timing {
-			clock-frequency = <128118000>;
-
-			hactive = <1080>;
-			hfront-porch = <72>;
-			hsync-len = <4>;
-			hback-porch = <42>;
-
-			vactive = <2408>;
-			vfront-porch = <30>;
-			vsync-len = <8>;
-			vback-porch = <10>;
-		};
-	};
-};
-
 &mmc_0 {
 	status = "okay";
 	compatible = "samsung,exynos7-dw-mshc";
