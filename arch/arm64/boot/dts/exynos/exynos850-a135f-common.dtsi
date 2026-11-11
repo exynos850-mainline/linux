@@ -25,14 +25,6 @@
 
 		bootargs = "clk_ignore_unused pd_ignore_unused regulator_ignore_unused";
 
-		framebuffer@fa000000 {
-			compatible = "simple-framebuffer";
-			reg = <0 0xfa000000 0 (1080 * 2408 * 4)>;
-			width = <1080>;
-			height = <2408>;
-			stride = <(1080 * 4)>;
-			format = "a8r8g8b8";
-		};
 	};
 
 	reserved-memory {
@@ -61,8 +53,14 @@
 			linux,cma-default;
 		};
 
-		framebuffer@fa000000 {
+		cont_splash_mem: framebuffer@fa000000 {
 			reg = <0 0xfa000000 0 (1080 * 2408 * 4)>;
+			/*
+			 * Boot splash of the bootloader. The DECON keeps
+			 * scanning it out until the first commit from userspace,
+			 * so it stays identity mapped behind the IOMMU.
+			 */
+			iommu-addresses = <&decon 0xfa000000 (1080 * 2408 * 4)>;
 			no-map;
 		};
 
@@ -467,6 +465,7 @@
 };
 
 &decon {
+	memory-region = <&cont_splash_mem>;
 	status = "okay";
 };
 
