@@ -53,6 +53,14 @@
 			linux,cma-default;
 		};
 
+		/* Shared memory of the WLBT subsystem, holds its firmware */
+		wlbt_mem: wlbt {
+			size = <0xc00000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x80000000 0x80000000>;
+			no-map;
+		};
+
 		cont_splash_mem: framebuffer@fa000000 {
 			reg = <0 0xfa000000 0 (1080 * 2408 * 4)>;
 			/*
@@ -576,4 +584,9 @@
 		interrupt-parent = <&gpa0>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 	};
+};
+
+&wlbt {
+	memory-region = <&wlbt_mem>;
+	status = "okay";
 };
