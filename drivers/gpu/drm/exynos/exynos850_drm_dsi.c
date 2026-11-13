@@ -48,6 +48,10 @@
 #define DSIM_STABLE_VFP			2
 #define DSIM_PLL_LOCK_CNT_MULT		500
 
+/* Highest and lowest VCO frequency seen in vendor PMS settings, in Hz */
+#define DSIM_PLL_VCO_MAX		4500000000ULL
+#define DSIM_PLL_VCO_MIN		1300000000ULL
+
 /* D-PHY analog settings from the vendor CAL */
 static const u32 dsim_phy_bias[] = { 0x10, 0x00, 0x05, 0x00, 0x68, 0x4c };
 static const u32 dsim_phy_dtb[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -412,16 +416,17 @@ static int dsim850_calc_pll(struct dsim850 *dsim, struct dsim850_pll *pll)
 
 	/*
 	 * Fout = (M + K / 65536) * Fin / (P * 2^S). Like the vendor settings,
-	 * use a reference of Fin / 2 and the highest VCO up to about 3.4 GHz,
-	 * e.g. P=2 M=255 S=2 K=25206 for 830 Mbps from 26 MHz.
+	 * use a reference of Fin / 2 and the highest VCO up to 4.5 GHz, e.g.
+	 * P=2 M=255 S=2 K=25206 for 830 Mbps (3.32 GHz) and P=2 M=346 S=2
+	 * K=10082 for 1125 Mbps (4.5 GHz), both from 26 MHz.
 	 */
 	pll->p = 2;
 	for (pll->s = 5; pll->s >= 0; pll->s--) {
 		vco = (u64)dsim->hs_rate_mhz * 1000000 << pll->s;
-		if (vco <= 3400000000ULL)
+		if (vco <= DSIM_PLL_VCO_MAX)
 			break;
 	}
-	if (pll->s < 0 || vco < 1300000000ULL)
+	if (pll->s < 0 || vco < DSIM_PLL_VCO_MIN)
 		return -ERANGE;
 
 	mk = div64_ul(vco * pll->p * 65536, fin);
@@ -1217,6 +1222,8 @@ static int dsim850_probe(struct platform_device *pdev)
 	ret = dsim850_calc_pll(dsim, &dsim->pll);
 	if (ret)
 		return dev_err_probe(dev, ret, "unsupported burst clock\n");
+	dev_dbg(dev, "%u Mbps: PLL P=%u M=%u S=%d K=%u\n", dsim->hs_rate_mhz,
+		dsim->pll.p, dsim->pll.m, dsim->pll.s, dsim->pll.k);
 
 	dsim->irq = platform_get_irq(pdev, 0);
 	if (dsim->irq < 0)

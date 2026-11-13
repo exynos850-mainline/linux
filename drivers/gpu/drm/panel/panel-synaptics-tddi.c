@@ -35,6 +35,8 @@ struct tddi_panel_data {
 	/* wait timings for panel disable */
 	u8 delay_ms_display_off;
 	u8 delay_ms_sleep_enter;
+	/* optional wait after the reset is released, 10 if unset */
+	u8 delay_ms_reset;
 	/*
 	 * optional curve from backlight levels to DCS brightness, sorted by
 	 * level and interpolated linearly; the levels map 1:1 without it
@@ -114,7 +116,7 @@ static int tddi_prepare(struct drm_panel *panel)
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
 	usleep_range(5000, 6000);
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
-	usleep_range(10000, 11000);
+	msleep(ctx->data->delay_ms_reset ?: 10);
 
 	gpiod_set_value_cansleep(ctx->backlight_gpio, 0);
 	usleep_range(5000, 6000);
@@ -721,9 +723,11 @@ static const struct tddi_panel_data td4300_panel_data = {
 
 static const struct tddi_panel_data td4375_panel_data = {
 	.lanes = 4,
-	/* the vendor driver sends the initialisation in LP mode */
-	.mode_flags = MIPI_DSI_MODE_LPM,
+	/* the vendor driver sends the initialisation in LP mode, with HSE */
+	.mode_flags = MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_LPM,
 	.init = td4375_init,
+	/* the vendor driver waits 22 ms after the reset */
+	.delay_ms_reset = 22,
 	/* wait timings for panel enable */
 	.delay_ms_sleep_exit = 120,
 	.delay_ms_display_on = 20,
