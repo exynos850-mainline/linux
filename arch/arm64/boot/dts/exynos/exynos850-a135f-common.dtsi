@@ -455,7 +455,7 @@
 };
 
 &gpu {
-        mali-supply = <&reg_dummy>;
+        mali-supply = <&vdd_buck2>;
 
         status = "okay";
 };
@@ -497,13 +497,6 @@
 &usbdrd_phy {
 	status = "okay";
 };
-<<<<<<< HEAD
-=======
-
-&gpu {
-	mali-supply = <&reg_mali>;
-	status = "okay";
-};
 
 &usi_cmgp0 {
 	samsung,mode = <USI_MODE_SPI>;
@@ -532,4 +525,3 @@
 		vdd-supply = <&reg_dummy>;
 	};
 };
->>>>>>> e3cd390986e6 (arm64: dts: exynos850: add and enable touchscreen nodes)
