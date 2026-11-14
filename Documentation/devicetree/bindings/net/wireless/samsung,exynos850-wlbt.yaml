@@ -61,6 +61,15 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Phandle to the PMU system controller.
 
+  firmware-rootfs:
+    description: Set by firmware-rootfs;, loads firmware from rootfs (for large firmware).
+
+  firmware-initfs:
+    description: Set by firmware-initfs; , loads firmware from initfs/ramdisk.
+
+  firmware-path:
+    description: Path to firmware under /lib/firmware.
+
 required:
   - compatible
   - reg
@@ -69,6 +78,7 @@ required:
   - interrupt-names
   - memory-region
   - samsung,pmu-syscon
+  - firmware-path
 
 additionalProperties: false
 
@@ -91,5 +101,7 @@ examples:
                      <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "mbox", "wdog", "cfg-req";
         memory-region = <&wlbt_mem>;
+        firmware-rootfs;
+        firmware-path = "wireless/scsc"; /* /lib/firmware/wireless/scsc */
         samsung,pmu-syscon = <&pmu_system_controller>;
     };
