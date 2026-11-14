@@ -6,10 +6,28 @@
  *
  * All files are loaded through the firmware loader, from the "scsc/"
  * directory, e.g. scsc/mx140.bin and scsc/mx140_wlan.hcf.
+ *
+ * The following optional properties on the WLBT device tree node change
+ * where and how the files are looked up:
+ *
+ *  firmware-path    (string) Directory, relative to the kernel firmware
+ *                   search path (normally /lib/firmware), that is used
+ *                   instead of "scsc", e.g. "samsung/a13/scsc".
+ *  firmware-initfs  (bool) Files are in the initramfs. Load them with no
+ *                   userspace fallback and fail immediately if missing.
+ *  firmware-rootfs  (bool) Files are on the root filesystem, which may not
+ *                   be mounted yet. Like firmware-initfs, but a missing
+ *                   mandatory file is retried for a few seconds.
+ *
+ * Without firmware-initfs or firmware-rootfs, request_firmware() is used.
+ * Setting both flags is invalid and both are ignored.
  */
 
+#include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/stdarg.h>
 #include <linux/string.h>
 #include <scsc/scsc_logring.h>
 #include <scsc/scsc_mx.h>
@@ -18,6 +36,17 @@
 
 #define MX140_FW_DIR		"scsc"
 #define MX140_FW_PATH_MAX_LENGTH	128
+#define MX140_FW_ROOTFS_RETRIES		20
+#define MX140_FW_ROOTFS_RETRY_MS	250
+
+enum mx140_fw_source {
+	MX140_FW_SRC_DEFAULT,
+	MX140_FW_SRC_INITFS,
+	MX140_FW_SRC_ROOTFS,
+};
+
+/* Set once any file has been loaded, i.e. the rootfs is known to be there */
+static bool fw_rootfs_ready;
 
 /* Firmware variant, may be overridden e.g. for a test firmware */
 static char *firmware_variant = "mx140";
@@ -44,30 +73,113 @@ static const char *mx140_fw_suffix(void)
 	return fw_suffix_found < 0 ? "" : fw_suffixes[fw_suffix_found].suffix;
 }
 
+static enum mx140_fw_source mx140_fw_source(struct device *dev)
+{
+	bool initfs = of_property_read_bool(dev->of_node, "firmware-initfs");
+	bool rootfs = of_property_read_bool(dev->of_node, "firmware-rootfs");
+
+	if (initfs && rootfs) {
+		dev_warn_once(dev, "firmware-initfs and firmware-rootfs are exclusive, ignoring both\n");
+		return MX140_FW_SRC_DEFAULT;
+	}
+	if (initfs)
+		return MX140_FW_SRC_INITFS;
+	if (rootfs)
+		return MX140_FW_SRC_ROOTFS;
+	return MX140_FW_SRC_DEFAULT;
+}
+
+/* Firmware directory, relative to the firmware search path */
+static const char *mx140_fw_dir(struct scsc_mx *mx)
+{
+	struct device *dev = scsc_mx_get_device(mx);
+	const char *dir;
+
+	if (!dev || of_property_read_string(dev->of_node, "firmware-path", &dir))
+		return MX140_FW_DIR;
+
+	if (!*dir || dir[0] == '/' || strstr(dir, "..")) {
+		dev_warn_once(dev, "invalid firmware-path \"%s\", using \"%s\"\n",
+			      dir, MX140_FW_DIR);
+		return MX140_FW_DIR;
+	}
+
+	return dir;
+}
+
+/* Builds "<firmware dir>/<fmt...>" */
+static __printf(4, 5)
+int mx140_fw_path(struct scsc_mx *mx, char *buf, size_t len, const char *fmt, ...)
+{
+	va_list args;
+	int n;
+
+	n = snprintf(buf, len, "%s/", mx140_fw_dir(mx));
+	if (n >= len)
+		return -ENAMETOOLONG;
+
+	va_start(args, fmt);
+	n += vsnprintf(buf + n, len - n, fmt, args);
+	va_end(args);
+
+	return n >= len ? -ENAMETOOLONG : 0;
+}
+
 static int __mx140_request_file(struct scsc_mx *mx, const char *path,
 				const struct firmware **firmp, bool optional)
 {
 	struct device *dev = scsc_mx_get_device(mx);
+	enum mx140_fw_source src;
+	int tries = 0;
 	int ret;
 
 	if (!dev)
 		return -EIO;
 
-	scsc_mx_request_firmware_mutex_lock(mx);
-	scsc_mx_request_firmware_wake_lock(mx);
-	if (optional)
-		ret = firmware_request_nowarn(firmp, path, dev);
-	else
-		ret = request_firmware(firmp, path, dev);
-	scsc_mx_request_firmware_wake_unlock(mx);
-	scsc_mx_request_firmware_mutex_unlock(mx);
+	src = mx140_fw_source(dev);
+
+	for (;;) {
+		scsc_mx_request_firmware_mutex_lock(mx);
+		scsc_mx_request_firmware_wake_lock(mx);
+		if (src != MX140_FW_SRC_DEFAULT)
+			ret = request_firmware_direct(firmp, path, dev);
+		else if (optional)
+			ret = firmware_request_nowarn(firmp, path, dev);
+		else
+			ret = request_firmware(firmp, path, dev);
+		scsc_mx_request_firmware_wake_unlock(mx);
+		scsc_mx_request_firmware_mutex_unlock(mx);
+
+		/*
+		 * The rootfs may not be mounted yet: retry mandatory files,
+		 * until a file has been found once. Optional files are
+		 * routinely missing and must not be delayed.
+		 */
+		if (ret != -ENOENT || src != MX140_FW_SRC_ROOTFS || optional ||
+		    READ_ONCE(fw_rootfs_ready) || ++tries > MX140_FW_ROOTFS_RETRIES)
+			break;
+		msleep(MX140_FW_ROOTFS_RETRY_MS);
+	}
+
+	if (!ret)
+		WRITE_ONCE(fw_rootfs_ready, true);
+	else if (!optional && src != MX140_FW_SRC_DEFAULT)
+		dev_err(dev, "firmware %s not found (%d)\n", path, ret);
 
 	return ret;
 }
 
+/* Reads a file, path is relative to the firmware directory */
 int mx140_request_file(struct scsc_mx *mx, char *path, const struct firmware **firmp)
 {
-	return __mx140_request_file(mx, path, firmp, false);
+	char full[MX140_FW_PATH_MAX_LENGTH];
+	int r;
+
+	r = mx140_fw_path(mx, full, sizeof(full), "%s", path);
+	if (r)
+		return r;
+
+	return __mx140_request_file(mx, full, firmp, false);
 }
 EXPORT_SYMBOL(mx140_request_file);
 
@@ -88,8 +200,10 @@ int mx140_file_request_conf(struct scsc_mx *mx, const struct firmware **conf,
 	char path[MX140_FW_PATH_MAX_LENGTH];
 	int r;
 
-	snprintf(path, sizeof(path), MX140_FW_DIR "/%s%s_%s",
-		 firmware_variant, mx140_fw_suffix(), filename);
+	r = mx140_fw_path(mx, path, sizeof(path), "%s%s_%s",
+			  firmware_variant, mx140_fw_suffix(), filename);
+	if (r)
+		return r;
 
 	/* Not every configuration file exists, the callers report missing ones */
 	r = __mx140_request_file(mx, path, conf, true);
@@ -105,9 +219,12 @@ int mx140_file_request_debug_conf(struct scsc_mx *mx, const struct firmware **co
 				  const char *config_rel_path)
 {
 	char path[MX140_FW_PATH_MAX_LENGTH];
+	int r;
 
-	snprintf(path, sizeof(path), MX140_FW_DIR "/%s%s/debug/%s",
-		 firmware_variant, mx140_fw_suffix(), config_rel_path);
+	r = mx140_fw_path(mx, path, sizeof(path), "%s%s/debug/%s",
+			  firmware_variant, mx140_fw_suffix(), config_rel_path);
+	if (r)
+		return r;
 
 	return __mx140_request_file(mx, path, conf, true);
 }
@@ -118,8 +235,11 @@ int mx140_file_request_device_conf(struct scsc_mx *mx, const struct firmware **c
 				   const char *config_rel_path)
 {
 	char path[MX140_FW_PATH_MAX_LENGTH];
+	int r;
 
-	snprintf(path, sizeof(path), MX140_FW_DIR "/conf/%s", config_rel_path);
+	r = mx140_fw_path(mx, path, sizeof(path), "conf/%s", config_rel_path);
+	if (r)
+		return r;
 
 	return __mx140_request_file(mx, path, conf, true);
 }
@@ -138,7 +258,9 @@ static int __mx140_file_download_fw(struct scsc_mx *mx, void *dest, size_t dest_
 	const struct firmware *firm;
 	int r;
 
-	snprintf(path, sizeof(path), MX140_FW_DIR "/%s%s.bin", firmware_variant, fw_suffix);
+	r = mx140_fw_path(mx, path, sizeof(path), "%s%s.bin", firmware_variant, fw_suffix);
+	if (r)
+		return r;
 
 	SCSC_TAG_INFO(MX_FILE, "Load WLBT fw %s in shared address %p\n", path, dest);
 	r = __mx140_request_file(mx, path, &firm, fw_suffix[0] != '\0');

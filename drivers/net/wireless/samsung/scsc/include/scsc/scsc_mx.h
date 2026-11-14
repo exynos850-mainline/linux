@@ -354,7 +354,8 @@ void mx140_file_release_conf(struct scsc_mx *mx, const struct firmware *conf);
 
 /* Read device configuration file into memory.
  *
- * Path is absolute.
+ * Path is relative to the firmware directory ("scsc" or the
+ * "firmware-path" device tree property).
  * Returns pointer to data or NULL if file not found.
  * Call mx140_release_file() to release the memory.
  */

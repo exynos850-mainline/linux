@@ -73,7 +73,7 @@ static int firmware_read(const struct firmware *firm, void *dest, size_t size, i
 
 int slsi_read_regulatory(struct slsi_dev *sdev)
 {
-	char *reg_file_t = "scsc/slsi_reg_database.bin";
+	char *reg_file_t = "slsi_reg_database.bin";
 
 	int i = 0, j = 0, index = 0;
 	uint32_t num_freqbands = 0, num_rules = 0, num_collections = 0;
