@@ -516,9 +516,9 @@
 };
 
 &gpu {
-        mali-supply = <&vdd_buck2>;
+	mali-supply = <&vdd_buck2>;
 
-        status = "okay";
+	status = "okay";
 };
 
 &mmc_0 {
@@ -587,6 +587,8 @@
 };
 
 &wlbt {
+	firmware-rootfs;
+	firmware-path = "wireless/scsc";
 	memory-region = <&wlbt_mem>;
 	status = "okay";
 };
